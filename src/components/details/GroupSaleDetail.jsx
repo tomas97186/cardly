@@ -1,0 +1,51 @@
+import { RotateCcw } from "lucide-react";
+import { C } from "../../lib/theme";
+import { euro, fmtDate } from "../../lib/format";
+import { Modal } from "../ui/Modal";
+import { PhotoThumb } from "../ui/Photo";
+import { GhostButton } from "../ui/Buttons";
+
+// ---------- Detail modal for a group sale (several lot cards sold together for one total) ----------
+export function GroupSaleDetail({ groupId, sale, members, onClose, onCancelGroupSale }) {
+  const allKnown = members.every((m) => m.cost != null);
+  const totalCost = allKnown ? members.reduce((s, m) => s + m.cost, 0) : null;
+  const margin = allKnown ? sale.groupTotal - totalCost : null;
+  return (
+    <Modal title="Vendita di gruppo" onClose={onClose} eyebrow="Più carte vendute insieme" wide>
+      <div className="p-3 rounded-xl mb-4" style={{ background: "rgba(63,179,155,0.1)", border: `1px solid ${C.tealDim}` }}>
+        <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>Venduta il</span><span>{fmtDate(sale.date)}</span></div>
+        <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>Prezzo totale</span><span className="font-semibold">{euro(sale.groupTotal)}</span></div>
+        {sale.buyer && <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>Acquirente</span><span>{sale.buyer}</span></div>}
+        {(sale.carrier || sale.tracking) && (
+          <div className="flex justify-between text-[13.5px] mb-1">
+            <span style={{ color: C.textDim }}>Spedizione</span>
+            <span className="text-right">{sale.carrier}{sale.carrier && sale.tracking && " · "}{sale.tracking}</span>
+          </div>
+        )}
+        {sale.notes && <div className="text-[13px] pt-1" style={{ color: C.text }}>{sale.notes}</div>}
+        <div className="flex justify-between text-[13.5px] font-bold pt-1 mt-1" style={{ borderTop: `1px solid ${C.tealDim}` }}>
+          <span>Margine complessivo</span>
+          <span style={{ color: margin === null ? C.amber : margin >= 0 ? C.teal : C.crimson }}>
+            {margin === null ? "Costo non noto per tutte le carte" : `${margin >= 0 ? "+" : ""}${euro(margin)}`}
+          </span>
+        </div>
+      </div>
+
+      <h4 className="text-[12px] uppercase tracking-widest mb-2" style={{ color: C.textFaint }}>{members.length} carte incluse</h4>
+      <div className="space-y-2 mb-4">
+        {members.map((m) => (
+          <div key={m.id} className="flex items-center gap-3 p-2.5 rounded-xl" style={{ background: C.surfaceAlt }}>
+            <PhotoThumb photoKey={m.photoKey} size={40} rounded="8px" iconSize={14} />
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-medium truncate">{m.name || "Carta senza nome"}</div>
+              <div className="text-[11px] truncate" style={{ color: C.textFaint }}>{m.sourceLabel}</div>
+            </div>
+            <span className="text-[12px] flex-shrink-0" style={{ color: m.cost != null ? C.textDim : C.amber }}>{m.cost != null ? `costo ${euro(m.cost)}` : "costo n.d."}</span>
+          </div>
+        ))}
+      </div>
+
+      <GhostButton full onClick={onCancelGroupSale} style={{ color: C.crimson, borderColor: C.crimsonDim }}><RotateCcw size={14} /> Annulla vendita di gruppo</GhostButton>
+    </Modal>
+  );
+}

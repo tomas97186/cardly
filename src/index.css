@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global chrome (scrollbar, date picker, font) lives in App.jsx's own <style> tag
+   instead of here, so it also applies to the single-file Claude Artifact build,
+   which has no index.html/index.css of its own. */

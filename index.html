@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>Cardly</title>
+<meta name="description" content="Gestione inventario carte collezionabili Pokémon e One Piece" />
+<link rel="manifest" href="/manifest.json" />
+<meta name="theme-color" content="#12141C" />
+<link rel="icon" href="/icon-192.png" />
+<link rel="apple-touch-icon" href="/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Cardly" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+  html, body { height: 100%; margin: 0; background: #12141C; overscroll-behavior: none; }
+  body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  #root { min-height: 100%; }
+  #boot-fallback { color: #8B90A3; font-family: system-ui, sans-serif; text-align: center; padding-top: 40vh; font-size: 14px; }
+</style>
+</head>
+<body>
+  <div id="root"><div id="boot-fallback">Caricamento di Cardly...</div></div>
+
+  <script type="module" src="/src/main.jsx"></script>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
