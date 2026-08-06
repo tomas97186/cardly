@@ -1,4 +1,5 @@
 import { useState, useEffect, useId } from "react";
+import { createPortal } from "react-dom";
 import { Camera, ImageOff, X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { C } from "../../lib/theme";
 import { loadPhotoValue, loadPhotoValues } from "../../lib/storage";
@@ -197,7 +198,11 @@ async function downloadAllPhotos(urls, prefix) {
 }
 
 function Lightbox({ urls, index, onNavigate, onClose, fileNamePrefix }) {
-  return (
+  // Rendered via a portal straight onto <body>: Modal's overlay uses backdropFilter,
+  // which (like `transform`) creates a new containing block for `position: fixed`
+  // descendants — without the portal, this would end up fixed to the Modal instead
+  // of the viewport, appearing "trapped" inside it instead of truly full-screen.
+  return createPortal(
     <div className="anim-fade-in fixed inset-0 z-[60] flex items-center justify-center" style={{ background: "rgba(6,7,12,0.92)" }} onClick={onClose}>
       <button
         onClick={(e) => { e.stopPropagation(); downloadPhoto(urls[index], index, fileNamePrefix); }}
@@ -227,6 +232,7 @@ function Lightbox({ urls, index, onNavigate, onClose, fileNamePrefix }) {
       {urls.length > 1 && (
         <div style={{ position: "absolute", bottom: 20, color: "#fff", fontSize: 12 }}>{index + 1} / {urls.length}</div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }

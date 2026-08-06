@@ -47,14 +47,9 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
 
       {lot.purchaseNotes && <p className="text-[13px] mb-4" style={{ color: C.textDim }}>{lot.purchaseNotes}</p>}
 
-      <div className="flex items-center justify-between mb-2">
-        <h4 className="text-[12px] uppercase tracking-widest" style={{ color: C.textFaint }}>
-          Carte nel lotto {soldCount > 0 && <span style={{ color: C.teal }}>· {soldCount} vendute</span>} {listedCount > 0 && <span style={{ color: C.info }}>· {listedCount} in vendita</span>}
-        </h4>
-        <button onClick={onAddCard} className="flex items-center gap-1 text-[12.5px] font-semibold" style={{ color: C.gold }}>
-          <Plus size={14} /> Aggiungi carta
-        </button>
-      </div>
+      <h4 className="text-[12px] uppercase tracking-widest mb-2" style={{ color: C.textFaint }}>
+        Carte nel lotto {soldCount > 0 && <span style={{ color: C.teal }}>· {soldCount} vendute</span>} {listedCount > 0 && <span style={{ color: C.info }}>· {listedCount} in vendita</span>}
+      </h4>
 
       {lot.cards.length === 0 ? (
         <div className="text-center py-8 rounded-xl mb-2" style={{ background: C.surfaceAlt, color: C.textFaint }}>
@@ -99,8 +94,8 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
       )}
 
       {remaining > 0 && (
-        <button onClick={onAddCard} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[12.5px]" style={{ border: `1.5px dashed ${C.border}`, color: C.textFaint }}>
-          <Plus size={14} /> {remaining} carte ancora da catalogare
+        <button onClick={onAddCard} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-semibold" style={{ border: `1.5px dashed ${C.gold}`, color: C.gold, background: "rgba(217,174,76,0.08)" }}>
+          <Plus size={15} /> {remaining} carte ancora da catalogare
         </button>
       )}
     </Modal>
