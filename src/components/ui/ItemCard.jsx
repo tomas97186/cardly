@@ -12,7 +12,7 @@ export function ItemCard({ item, onClick }) {
     const soldCount = item.cards.filter((c) => c.status === "sold").length;
     const listedCount = item.cards.filter((c) => c.status === "listed").length;
     return (
-      <button onClick={onClick} className="text-left rounded-2xl overflow-hidden flex flex-col" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <button onClick={onClick} className="anim-fade-in text-left rounded-2xl overflow-hidden flex flex-col transition-transform active:scale-[0.98]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
         <div style={{ height: "3px", background: `linear-gradient(90deg, ${meta.color}, transparent)` }} />
         <div className="p-3 flex gap-3">
           <PhotoCover photoKeys={item.photoKeys} />
@@ -40,7 +40,7 @@ export function ItemCard({ item, onClick }) {
   }
   const meta = GAME_META[item.game] || GAME_META.altro;
   return (
-    <button onClick={onClick} className="text-left rounded-2xl overflow-hidden flex flex-col" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+    <button onClick={onClick} className="anim-fade-in text-left rounded-2xl overflow-hidden flex flex-col transition-transform active:scale-[0.98]" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
       <div style={{ height: "3px", background: `linear-gradient(90deg, ${meta.color}, transparent)` }} />
       <div className="p-3 flex gap-3">
         <PhotoCover photoKeys={item.photoKeys} />

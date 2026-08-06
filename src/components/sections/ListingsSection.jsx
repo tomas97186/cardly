@@ -48,7 +48,7 @@ export function ListingsSection({
         </div>
       </div>
       {showListingFilters && (
-        <div className="mb-2 p-3 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <div className="anim-slide-up mb-2 p-3 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
           {listingPlatforms.length > 0 && (
             <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
               {[["all", "Tutte le piattaforme"], ...listingPlatforms.map((p) => [p, p])].map(([val, label]) => (

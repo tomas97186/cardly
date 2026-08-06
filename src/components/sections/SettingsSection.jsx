@@ -1,20 +1,23 @@
 import { useState } from "react";
 import {
   User, LogOut, KeyRound, ShieldCheck, ShieldAlert, Package, Clock, Gamepad2, Tag, Plus, X, FileText,
-  ChevronRight, ChevronLeft, Award,
+  ChevronRight, ChevronLeft, Award, Info, AlertTriangle, Scale, FileCheck, Code2, Mail,
 } from "lucide-react";
 import { C } from "../../lib/theme";
 import { fmtDate } from "../../lib/format";
+import { SUPPORT_EMAIL } from "../../lib/appConfig";
 import { Modal } from "../ui/Modal";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
 import { Field } from "../ui/Field";
 import { TextInput } from "../ui/Inputs";
 import { Badge } from "../ui/Badge";
 
+const APP_VERSION = "1.0.0";
+
 // ---------- Settings home: a menu of categories instead of every option stacked on
 // one page, so it stays manageable as more settings are added. ----------
 export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
-  const [panel, setPanel] = useState(null); // null (menu) | "account" | "catalog" | "data"
+  const [panel, setPanel] = useState(null); // null (menu) | "account" | "catalog" | "data" | "about"
 
   if (panel === "account") {
     return (
@@ -39,6 +42,13 @@ export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
       </SettingsPanel>
     );
   }
+  if (panel === "about") {
+    return (
+      <SettingsPanel title="Informazioni" onBack={() => setPanel(null)}>
+        <AboutPanel />
+      </SettingsPanel>
+    );
+  }
 
   return (
     <div>
@@ -54,6 +64,7 @@ export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
         )}
         <SettingsMenuItem icon={Gamepad2} title="Catalogo" subtitle={`${catalog.games.length} giochi, ${catalog.platforms.length} piattaforme, ${catalog.gradingCompanies.length} case di gradazione`} onClick={() => setPanel("catalog")} />
         <SettingsMenuItem icon={FileText} title="Esportazione CSV" subtitle="Scarica un foglio con carte, lotti e vendite" onClick={() => setPanel("data")} />
+        <SettingsMenuItem icon={Info} title="Informazioni" subtitle="Versione, privacy, termini e licenze" onClick={() => setPanel("about")} />
       </div>
     </div>
   );
@@ -307,6 +318,82 @@ function GradingCompaniesEditor({ catalog }) {
       </div>
     </div>
   );
+}
+
+function AboutPanel() {
+  const emailNode = SUPPORT_EMAIL
+    ? <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: C.info }}>{SUPPORT_EMAIL}</a>
+    : "[email da inserire]";
+
+  return (
+    <>
+      <div className="p-4 rounded-2xl text-center" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <div
+          className="mx-auto mb-2 flex items-center justify-center"
+          style={{ width: 44, height: 44, borderRadius: 999, background: C.surfaceAlt, border: `1.5px solid ${C.gold}` }}
+        >
+          <span style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: 15 }}>
+            <span style={{ color: C.text }}>C</span><span style={{ color: C.gold }}>ly</span>
+          </span>
+        </div>
+        <div className="text-sm font-semibold">Cardly</div>
+        <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>Versione {APP_VERSION}</div>
+        <p className="text-[12.5px] mt-2" style={{ color: C.textDim }}>
+          Gestione acquisti, catalogazione e vendite per collezioni di carte collezionabili.
+        </p>
+      </div>
+
+      <div className="flex gap-2 items-start p-3 rounded-xl" style={{ background: "rgba(201,138,58,0.12)" }}>
+        <AlertTriangle size={14} color={C.amber} style={{ marginTop: 1, flexShrink: 0 }} />
+        <span className="text-[12px]" style={{ color: C.amber }}>
+          I testi di questa sezione sono una bozza di base, non una consulenza legale. Prima di
+          pubblicare l'app o introdurre funzioni a pagamento, falli rivedere da un professionista
+          (in particolare per la conformità GDPR) e completa i punti segnati "da inserire".
+        </span>
+      </div>
+
+      <AboutSection icon={Scale} title="Informativa sulla privacy">
+        <AboutP><b>Titolare del trattamento:</b> {SUPPORT_EMAIL ? <>contattabile all'indirizzo {emailNode} (nome/ragione sociale da inserire)</> : "[nome/ragione sociale ed email da inserire]"}.</AboutP>
+        <AboutP><b>Dati raccolti:</b> indirizzo email e password per l'account; i dati che inserisci nell'inventario (carte, lotti, prezzi, vendite, note); le foto che carichi.</AboutP>
+        <AboutP><b>Dove sono conservati:</b> su Supabase (database, autenticazione e storage foto), con accesso protetto da login e regole che permettono a ciascun utente di vedere solo i propri dati. Hosting dell'app tramite Netlify.</AboutP>
+        <AboutP><b>Finalità:</b> fornire il servizio di gestione dell'inventario. Nessun dato viene venduto o condiviso con terzi per finalità di marketing.</AboutP>
+        <AboutP><b>Conservazione:</b> finché l'account resta attivo. Puoi richiedere la cancellazione dei tuoi dati in qualsiasi momento.</AboutP>
+        <AboutP><b>I tuoi diritti:</b> accesso, rettifica, cancellazione, portabilità e opposizione al trattamento dei tuoi dati, contattando {emailNode}.</AboutP>
+        <AboutP><b>Fornitori terzi coinvolti:</b> Supabase Inc. (database, autenticazione, storage) e Netlify (hosting).</AboutP>
+      </AboutSection>
+
+      <AboutSection icon={FileCheck} title="Termini di servizio">
+        <AboutP>Il servizio è fornito "così com'è", pensato per la gestione personale di un inventario di carte collezionabili.</AboutP>
+        <AboutP>Sei responsabile dell'accuratezza dei dati che inserisci (prezzi, quantità, stato delle vendite).</AboutP>
+        <AboutP>Eventuali funzionalità a pagamento saranno regolate da termini aggiuntivi comunicati al momento del lancio.</AboutP>
+        <AboutP>Il servizio non garantisce disponibilità continua e potrebbe essere soggetto a manutenzioni o interruzioni.</AboutP>
+      </AboutSection>
+
+      <AboutSection icon={Code2} title="Licenze open source">
+        <AboutP>Questa app è costruita con React, Vite, Tailwind CSS, lucide-react e Supabase JS, tutte rilasciate con licenze open source permissive (principalmente MIT).</AboutP>
+      </AboutSection>
+
+      <AboutSection icon={Mail} title="Contatti">
+        <AboutP>Per domande, richieste sui tuoi dati o segnalazioni: {emailNode}.</AboutP>
+      </AboutSection>
+    </>
+  );
+}
+
+function AboutSection({ icon: Icon, title, children }) {
+  return (
+    <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <div className="flex items-center gap-2 mb-2">
+        <Icon size={16} color={C.gold} />
+        <span className="text-sm font-semibold">{title}</span>
+      </div>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function AboutP({ children }) {
+  return <p className="text-[12.5px] leading-relaxed" style={{ color: C.textDim }}>{children}</p>;
 }
 
 function CSVPanel({ itemCount, onExportCSV }) {

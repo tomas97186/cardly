@@ -66,6 +66,7 @@ function AppInner({ auth }) {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterKind, setFilterKind] = useState("all"); // all | singola | lotto
   const [filterGraded, setFilterGraded] = useState("all"); // all | graded | notGraded
+  const [filterCategory, setFilterCategory] = useState("all");
   const [sortInventory, setSortInventory] = useState("recent");
   const [period, setPeriod] = useState("all");
   const [customFrom, setCustomFrom] = useState(todayISO());
@@ -391,6 +392,10 @@ function AppInner({ auth }) {
       return filterGraded === "graded" ? isGraded : !isGraded;
     })
     .filter((i) => {
+      if (filterCategory === "all") return true;
+      return i.kind === "singola" ? i.category === filterCategory : i.cards.some((c) => c.category === filterCategory);
+    })
+    .filter((i) => {
       if (filterStatus === "all") return true;
       if (i.kind === "singola") return i.status === filterStatus;
       const hasSold = i.cards.some((c) => c.status === "sold");
@@ -503,12 +508,33 @@ function AppInner({ auth }) {
         ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
         .app-shell { height: 100vh; height: 100dvh; }
+
+        /* Native-feeling touch scrolling: momentum on iOS (Android already has it
+           built in), and each scrollable area bounces on its own instead of the
+           scroll "chaining" into whatever is behind it. */
+        .overflow-y-auto, .overflow-x-auto {
+          -webkit-overflow-scrolling: touch;
+          scroll-behavior: smooth;
+          overscroll-behavior: contain;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .anim-fade-in { animation: fadeIn 0.18s ease-out both; }
+        .anim-scale-in { animation: scaleIn 0.16s cubic-bezier(0.16,1,0.3,1) both; }
+        .anim-slide-up { animation: slideUp 0.2s cubic-bezier(0.16,1,0.3,1) both; }
+        @media (prefers-reduced-motion: reduce) {
+          .anim-fade-in, .anim-scale-in, .anim-slide-up { animation: none; }
+        }
       `}</style>
 
       <div className="px-5 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
         <div>
-          <div className="text-[11px] uppercase tracking-[0.2em]" style={{ color: C.gold }}>Gestione Collezione</div>
-          <h1 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-xl font-semibold -mt-0.5">Cardly</h1>
+          {/* <div className="text-[11px] uppercase tracking-[0.2em]" style={{ color: C.gold }}>Gestione Collezione</div> */}
+          <h1 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-xl font-semibold -mt-0.5">
+            <span style={{ color: C.text }}>Card</span><span style={{ color: C.gold }}>ly</span>
+          </h1>
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setShowGlobalSearch(true)} title="Cerca ovunque" style={{ color: C.textDim }} className="p-2 rounded-lg"><Search size={18} /></button>
@@ -516,7 +542,7 @@ function AppInner({ auth }) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 pb-24">
+      <div key={loading ? "loading" : view} className="anim-fade-in flex-1 min-h-0 overflow-y-auto px-5 py-5 pb-24">
         {loading ? (
           <div className="text-center py-16 text-sm" style={{ color: C.textFaint }}>Caricamento inventario...</div>
         ) : view === "dashboard" ? (
@@ -535,6 +561,7 @@ function AppInner({ auth }) {
             filterGame={filterGame} setFilterGame={setFilterGame} filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             filterKind={filterKind} setFilterKind={setFilterKind}
             filterGraded={filterGraded} setFilterGraded={setFilterGraded}
+            filterCategory={filterCategory} setFilterCategory={setFilterCategory}
             sortInventory={sortInventory} setSortInventory={setSortInventory}
             games={catalog.games}
             onOpenItem={(id) => setDetailItemId(id)} onOpenLot={(id) => setDetailLotId(id)}

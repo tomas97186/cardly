@@ -94,7 +94,7 @@ export function PhotoPicker({ value, onChange, max = 6 }) {
         {value.length === 0 ? "Nessuna foto" : `${value.length} / ${max} foto`}{value.length > 1 ? " — la prima è la copertina" : ""}
       </span>
       <input
-        id={inputId} type="file" accept="image/*" capture="environment" multiple className="hidden"
+        id={inputId} type="file" accept="image/*" multiple className="hidden"
         onChange={async (e) => {
           if (e.target.files && e.target.files.length) await handleFiles(e.target.files);
           e.target.value = "";
@@ -198,7 +198,7 @@ async function downloadAllPhotos(urls, prefix) {
 
 function Lightbox({ urls, index, onNavigate, onClose, fileNamePrefix }) {
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: "rgba(6,7,12,0.92)" }} onClick={onClose}>
+    <div className="anim-fade-in fixed inset-0 z-[60] flex items-center justify-center" style={{ background: "rgba(6,7,12,0.92)" }} onClick={onClose}>
       <button
         onClick={(e) => { e.stopPropagation(); downloadPhoto(urls[index], index, fileNamePrefix); }}
         style={{ position: "absolute", top: 16, right: 56, color: "#fff" }}
@@ -215,7 +215,7 @@ function Lightbox({ urls, index, onNavigate, onClose, fileNamePrefix }) {
           <ChevronLeft size={28} />
         </button>
       )}
-      <img src={urls[index]} alt="" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "88vw", maxHeight: "84vh", borderRadius: 12, objectFit: "contain" }} />
+      <img key={index} src={urls[index]} alt="" onClick={(e) => e.stopPropagation()} className="anim-scale-in" style={{ maxWidth: "88vw", maxHeight: "84vh", borderRadius: 12, objectFit: "contain" }} />
       {urls.length > 1 && (
         <button
           onClick={(e) => { e.stopPropagation(); onNavigate((index + 1) % urls.length); }}
