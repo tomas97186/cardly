@@ -12,7 +12,7 @@ import { GhostButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Add Purchase Form (top-level: single card OR lot container) ----------
 export function AddPurchaseForm({ onCancel, onSubmit }) {
-  const { games, GAME_META, gradingCompanies } = useCatalog();
+  const { games, gradingCompanies } = useCatalog();
   const { t } = useLanguage();
   const [purchaseType, setPurchaseType] = useState("singola");
   const [game, setGame] = useState(games[0]?.key || "altro");
@@ -64,14 +64,9 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
       </div>
 
       <Field label={t("common.gamePrevalent")}>
-        <div className="flex gap-2">
-          {Object.entries(GAME_META).map(([key, meta]) => (
-            <button key={key} onClick={() => setGame(key)} className="flex-1 py-2 rounded-lg text-sm font-medium border"
-              style={{ borderColor: game === key ? meta.color : C.border, background: game === key ? meta.bg : "transparent", color: game === key ? meta.color : C.textDim }}>
-              {meta.label}
-            </button>
-          ))}
-        </div>
+        <Select value={game} onChange={(e) => setGame(e.target.value)}>
+          {games.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}
+        </Select>
       </Field>
 
       {purchaseType === "singola" ? (

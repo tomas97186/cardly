@@ -12,7 +12,7 @@ import { GhostButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Edit single-card item form ----------
 export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
-  const { GAME_META, gradingCompanies } = useCatalog();
+  const { games, gradingCompanies } = useCatalog();
   const { t } = useLanguage();
   const [game, setGame] = useState(item.game);
   const [name, setName] = useState(item.name);
@@ -62,14 +62,9 @@ export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
   return (
     <div>
       <Field label={t("common.game")}>
-        <div className="flex gap-2">
-          {Object.entries(GAME_META).map(([key, meta]) => (
-            <button key={key} onClick={() => setGame(key)} className="flex-1 py-2 rounded-lg text-sm font-medium border"
-              style={{ borderColor: game === key ? meta.color : C.border, background: game === key ? meta.bg : "transparent", color: game === key ? meta.color : C.textDim }}>
-              {meta.label}
-            </button>
-          ))}
-        </div>
+        <Select value={game} onChange={(e) => setGame(e.target.value)}>
+          {games.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}
+        </Select>
       </Field>
       <Field label={t("forms.cardName")}><TextInput value={name} onChange={(e) => setName(e.target.value)} /></Field>
       <div className="grid grid-cols-2 gap-3">

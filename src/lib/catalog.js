@@ -10,6 +10,9 @@ export const COLOR_PALETTE = [
 export const DEFAULT_GAMES = [
   { key: "pokemon", label: "Pokémon", color: C.gold },
   { key: "onepiece", label: "One Piece", color: C.crimson },
+  { key: "magic", label: "Magic", color: C.teal },
+  { key: "riftbound", label: "Riftbound", color: C.info },
+  { key: "lorcana", label: "Lorcana", color: "#8E7CC3" },
   { key: "altro", label: "Altro", color: C.slate },
 ];
 

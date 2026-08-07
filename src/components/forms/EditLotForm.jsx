@@ -5,13 +5,13 @@ import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { loadPhotoValues } from "../../lib/storage";
 import { Field } from "../ui/Field";
-import { TextInput, TextArea } from "../ui/Inputs";
+import { TextInput, Select, TextArea } from "../ui/Inputs";
 import { PhotoPicker } from "../ui/Photo";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Edit lot (container) form ----------
 export function EditLotForm({ lot, onCancel, onSubmit, onDelete }) {
-  const { GAME_META } = useCatalog();
+  const { games } = useCatalog();
   const { t } = useLanguage();
   const [lotName, setLotName] = useState(lot.lotName);
   const [game, setGame] = useState(lot.game);
@@ -49,14 +49,9 @@ export function EditLotForm({ lot, onCancel, onSubmit, onDelete }) {
     <div>
       <Field label={t("forms.lotName")}><TextInput value={lotName} onChange={(e) => setLotName(e.target.value)} /></Field>
       <Field label={t("common.gamePrevalent")}>
-        <div className="flex gap-2">
-          {Object.entries(GAME_META).map(([key, meta]) => (
-            <button key={key} onClick={() => setGame(key)} className="flex-1 py-2 rounded-lg text-sm font-medium border"
-              style={{ borderColor: game === key ? meta.color : C.border, background: game === key ? meta.bg : "transparent", color: game === key ? meta.color : C.textDim }}>
-              {meta.label}
-            </button>
-          ))}
-        </div>
+        <Select value={game} onChange={(e) => setGame(e.target.value)}>
+          {games.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}
+        </Select>
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label={t("forms.lotTotalPrice2")}><TextInput type="number" step="0.01" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} /></Field>

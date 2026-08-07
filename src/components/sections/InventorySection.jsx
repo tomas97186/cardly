@@ -19,11 +19,13 @@ export function InventorySection({
   const { t } = useLanguage();
   return (
     <>
-      <div className="relative mb-3">
-        <Search size={15} style={{ position: "absolute", left: 12, top: 11 }} color={C.textFaint} />
-        <TextInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("inventory.searchPlaceholder")} style={{ paddingLeft: 34 }} />
+      <div className="sticky top-0 z-10" style={{ background: C.bg, borderRadius: "10px" }}>
+        <div className="relative">
+          <Search size={15} style={{ position: "absolute", left: 12, top: 11 }} color={C.textFaint} />
+          <TextInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("inventory.searchPlaceholder")} style={{ paddingLeft: 34 }} />
+        </div>
       </div>
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex items-center justify-between gap-2 mb-3 pt-3">
         <span className="text-[11.5px] flex-shrink-0" style={{ color: C.textFaint }}>{t("inventory.results", { count: sortedFiltered.length })}</span>
         <div className="flex items-center gap-2">
           <SortSelect value={sortInventory} onChange={setSortInventory} />

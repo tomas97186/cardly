@@ -12,7 +12,7 @@ import { GhostButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Add / Edit a single card inside a lot (cost optional) ----------
 export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
-  const { GAME_META, gradingCompanies } = useCatalog();
+  const { games, gradingCompanies } = useCatalog();
   const { t } = useLanguage();
   const isEdit = !!initial;
   const [name, setName] = useState(initial ? initial.name : "");
@@ -54,14 +54,9 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
   return (
     <div>
       <Field label={t("common.game")}>
-        <div className="flex gap-2">
-          {Object.entries(GAME_META).map(([key, meta]) => (
-            <button key={key} onClick={() => setGame(key)} className="flex-1 py-2 rounded-lg text-sm font-medium border"
-              style={{ borderColor: game === key ? meta.color : C.border, background: game === key ? meta.bg : "transparent", color: game === key ? meta.color : C.textDim }}>
-              {meta.label}
-            </button>
-          ))}
-        </div>
+        <Select value={game} onChange={(e) => setGame(e.target.value)}>
+          {games.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}
+        </Select>
       </Field>
       <Field label={t("forms.cardName")} hint={t("forms.lotCardNameHint")}>
         <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t("forms.lotCardNamePlaceholder")} />

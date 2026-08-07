@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
   Package, Plus, Search, LayoutGrid, ShoppingBag, Megaphone,
   Settings as SettingsIcon,
@@ -26,6 +26,7 @@ import { LotCardForm } from "./components/forms/LotCardForm";
 import { SaleForm } from "./components/forms/SaleForm";
 import { ListingForm } from "./components/forms/ListingForm";
 import { BulkSaleWizard } from "./components/forms/BulkSaleWizard";
+import { ExportListingsPdfForm } from "./components/forms/ExportListingsPdfForm";
 import { ItemDetail } from "./components/details/ItemDetail";
 import { LotCardDetail } from "./components/details/LotCardDetail";
 import { GroupSaleDetail } from "./components/details/GroupSaleDetail";
@@ -36,6 +37,9 @@ import { InventorySection } from "./components/sections/InventorySection";
 import { ListingsSection } from "./components/sections/ListingsSection";
 import { SalesSection } from "./components/sections/SalesSection";
 import { SettingsSection } from "./components/sections/SettingsSection";
+// Recharts (~130KB gzip) is only worth loading for people who actually open the
+// Report tab — same lazy-loading precedent as jsPDF in lib/pdfExport.js.
+const ReportSection = lazy(() => import("./components/sections/ReportSection"));
 
 // Shared between the mobile bottom tab bar and the desktop sidebar nav — labels are
 // translation keys, resolved via t() at render time so they react to language changes.
@@ -44,6 +48,7 @@ const NAV_ITEMS = [
   ["inventory", "nav.inventory", Package],
   ["listings", "nav.listings", Megaphone],
   ["sales", "nav.sales", ShoppingBag],
+  ["settings", "nav.settings", SettingsIcon],
 ];
 
 export default function App() {
@@ -98,8 +103,8 @@ function AppInner({ auth }) {
   const [showListingFilters, setShowListingFilters] = useState(false);
   const [showSalesFilters, setShowSalesFilters] = useState(false);
   const [showDashboardFilters, setShowDashboardFilters] = useState(false);
+  const [showReportFilters, setShowReportFilters] = useState(false);
 
-  const [listingSearch, setListingSearch] = useState("");
   const [listingPlatformFilter, setListingPlatformFilter] = useState("all");
   const [listingPriceMin, setListingPriceMin] = useState("");
   const [listingPriceMax, setListingPriceMax] = useState("");
@@ -122,6 +127,7 @@ function AppInner({ auth }) {
   const [showBulkSale, setShowBulkSale] = useState(false); // sale wizard from the Vendite tab; only a "vendita multipla" once 2+ cards are picked
   const [bulkSaleCount, setBulkSaleCount] = useState(0);
   const [detailGroupSaleId, setDetailGroupSaleId] = useState(null);
+  const [showExportPdf, setShowExportPdf] = useState(false);
 
   // Android back button: close whatever's on top (a modal/detail, or a nested
   // edit/sell/listing layer within one) instead of exiting the installed PWA. Only
@@ -137,7 +143,8 @@ function AppInner({ auth }) {
     (detailLotCard ? 1 : 0) +
     (editLotCard || sellLotCard || listingLotCard ? 1 : 0) +
     (showBulkSale ? 1 : 0) +
-    (detailGroupSaleId ? 1 : 0);
+    (detailGroupSaleId ? 1 : 0) +
+    (showExportPdf ? 1 : 0);
 
   function closeTopBackLayer() {
     if (editLotCard) return setEditLotCard(null);
@@ -152,6 +159,7 @@ function AppInner({ auth }) {
     if (listingItemId) return setListingItemId(null);
     if (detailItemId) return setDetailItemId(null);
     if (detailGroupSaleId) return setDetailGroupSaleId(null);
+    if (showExportPdf) return setShowExportPdf(false);
     if (showBulkSale) return setShowBulkSale(false);
     if (showAdd) return setShowAdd(false);
     if (showGlobalSearch) return setShowGlobalSearch(false);
@@ -396,6 +404,49 @@ function AppInner({ auth }) {
     exportInventoryCSV(items, catalog.GAME_META, t);
   }
 
+  // ---- PDF price list: cover photo + a few useful details + asking price for every
+  // currently-listed item (never the purchase cost), grouped by game and optionally
+  // restricted to just one ----
+  async function handleExportListingsPDF(gameFilter) {
+    const byGame = {};
+    for (const it of singolaItems) {
+      if (it.status !== "listed" || !it.listing) continue;
+      if (gameFilter !== "all" && it.game !== gameFilter) continue;
+      (byGame[it.game] ||= []).push({
+        name: cardDisplayName(it.name, it.cardNumber),
+        setName: it.setName, condition: it.condition, language: it.language,
+        gradingCompany: it.gradingCompany, grade: it.grade,
+        photoKey: it.photoKeys?.[0], price: it.listing.price,
+      });
+    }
+    for (const lot of lotItems) {
+      for (const c of lot.cards) {
+        if (c.status !== "listed" || !c.listing) continue;
+        const g = c.game || lot.game;
+        if (gameFilter !== "all" && g !== gameFilter) continue;
+        (byGame[g] ||= []).push({
+          name: `${lot.lotName} › ${cardDisplayName(c.name || t("common.unnamedCard"), c.cardNumber)}`,
+          setName: c.setName, condition: c.condition, language: c.language,
+          gradingCompany: c.gradingCompany, grade: c.grade,
+          photoKey: c.photoKeys && c.photoKeys.length ? c.photoKeys[0] : lot.photoKeys?.[0],
+          price: c.listing.price,
+        });
+      }
+    }
+
+    const sections = catalog.games
+      .filter((g) => byGame[g.key]?.length)
+      .map((g) => ({ gameLabel: g.label, gameColor: g.color, items: byGame[g.key] }));
+    if (sections.length === 0) return;
+
+    const suffix = gameFilter === "all" ? "" : `_${gameFilter}`;
+    // jsPDF (~400KB) is only worth loading for the users who actually export a price
+    // list, so it's fetched on demand here instead of bloating the main app bundle.
+    const { exportListingsPDF } = await import("./lib/pdfExport");
+    await exportListingsPDF(sections, t, `${t("pdfExport.filenamePrefix")}${suffix}_${todayISO()}.pdf`);
+    setShowExportPdf(false);
+  }
+
   // ---- derived data ----
   const singolaItems = items.filter((i) => i.kind === "singola");
   const lotItems = items.filter((i) => i.kind === "lotto");
@@ -405,6 +456,7 @@ function AppInner({ auth }) {
   const listedSingola = singolaItems.filter((i) => i.status === "listed");
   const listedLotCards = allLotCards.filter((c) => c.status === "listed");
   const allSaleUnitsRaw = buildAllSaleUnits(singolaItems, lotItems);
+  const gamesWithListedItems = catalog.games.filter((g) => listedSingola.some((i) => i.game === g.key) || listedLotCards.some((c) => (c.game || "") === g.key));
 
   // Carte "in magazzino": include sia le carte singole in stock sia, per ogni lotto,
   // tutte le unità non ancora vendute — comprese quelle non ancora catalogate individualmente.
@@ -492,8 +544,7 @@ function AppInner({ auth }) {
   const filteredListedUnits = rawListedUnits
     .filter((u) => listingPlatformFilter === "all" || u.listing?.platform === listingPlatformFilter)
     .filter((u) => listingPriceMin === "" || (u.listing?.price ?? 0) >= parseFloat(listingPriceMin))
-    .filter((u) => listingPriceMax === "" || (u.listing?.price ?? 0) <= parseFloat(listingPriceMax))
-    .filter((u) => !listingSearch.trim() || (u.name || "").toLowerCase().includes(listingSearch.trim().toLowerCase()));
+    .filter((u) => listingPriceMax === "" || (u.listing?.price ?? 0) <= parseFloat(listingPriceMax));
   const allListedUnits = sortUnits(filteredListedUnits, sortListings, {
     getDate: (u) => new Date(u.listing?.listedDate || 0).getTime(),
     getPrice: (u) => u.listing?.price,
@@ -613,28 +664,8 @@ function AppInner({ auth }) {
           >
             <Search size={18} /> {t("nav.search")}
           </button>
-          <button
-            onClick={() => setView("settings")}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium"
-            style={{ background: view === "settings" ? C.surfaceAlt : "transparent", color: view === "settings" ? C.gold : C.textDim }}
-          >
-            <SettingsIcon size={18} /> {t("nav.settings")}
-          </button>
         </div>
       </aside>
-
-      <div className="lg:hidden px-5 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
-        <div>
-          {/* <div className="text-[11px] uppercase tracking-[0.2em]" style={{ color: C.gold }}>Gestione Collezione</div> */}
-          <h1 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-xl font-semibold -mt-0.5">
-            <span style={{ color: C.text }}>Card</span><span style={{ color: C.gold }}>ly</span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setShowGlobalSearch(true)} title={t("app.searchEverywhere")} style={{ color: C.textDim }} className="p-2 rounded-lg"><Search size={18} /></button>
-          <button onClick={() => setView("settings")} title={t("nav.settings")} style={{ color: view === "settings" ? C.gold : C.textDim }} className="p-2 rounded-lg"><SettingsIcon size={18} /></button>
-        </div>
-      </div>
 
       <div key={loading ? "loading" : view} className="anim-fade-in flex-1 min-w-0 min-h-0 overflow-y-auto px-5 py-5 pb-24 lg:px-10 lg:py-8 lg:pb-10">
         <div className="lg:max-w-6xl lg:mx-auto">
@@ -664,12 +695,11 @@ function AppInner({ auth }) {
         ) : view === "listings" ? (
           <ListingsSection
             allListedUnits={allListedUnits} totalListedValue={totalListedValue} rawListedUnitsCount={rawListedUnits.length}
-            listingSearch={listingSearch} setListingSearch={setListingSearch}
             showListingFilters={showListingFilters} setShowListingFilters={setShowListingFilters}
             listingPlatforms={listingPlatforms} listingPlatformFilter={listingPlatformFilter} setListingPlatformFilter={setListingPlatformFilter}
             listingPriceMin={listingPriceMin} setListingPriceMin={setListingPriceMin} listingPriceMax={listingPriceMax} setListingPriceMax={setListingPriceMax}
             sortListings={sortListings} setSortListings={setSortListings}
-            onOpenUnit={openListedUnit}
+            onOpenUnit={openListedUnit} onExportPdf={() => setShowExportPdf(true)}
           />
         ) : view === "sales" ? (
           <SalesSection
@@ -680,6 +710,14 @@ function AppInner({ auth }) {
             sortSales={sortSales} setSortSales={setSortSales}
             onSelectSaleUnit={openSaleUnit}
           />
+        ) : view === "report" ? (
+          <Suspense fallback={<div className="text-center py-16 text-sm" style={{ color: C.textFaint }}>{t("common.loading")}</div>}>
+            <ReportSection
+              singolaItems={singolaItems} lotItems={lotItems} games={catalog.games}
+              period={period} setPeriod={setPeriod} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo}
+              showReportFilters={showReportFilters} setShowReportFilters={setShowReportFilters}
+            />
+          </Suspense>
         ) : (
           <SettingsSection auth={auth} catalog={catalog} itemCount={items.length} onExportCSV={handleExportCSV} />
         )}
@@ -775,6 +813,11 @@ function AppInner({ auth }) {
       {showBulkSale && (
         <Modal title={bulkSaleCount > 1 ? t("app.bulkSale") : t("forms.registerSale")} onClose={() => setShowBulkSale(false)} eyebrow={t("app.bulkSaleEyebrow")} wide>
           <BulkSaleWizard items={items} onCancel={() => setShowBulkSale(false)} onSubmit={(refs, saleData) => handleBulkSell(refs, saleData)} onSelectionChange={setBulkSaleCount} />
+        </Modal>
+      )}
+      {showExportPdf && (
+        <Modal title={t("pdfExport.menuButton")} onClose={() => setShowExportPdf(false)}>
+          <ExportListingsPdfForm gamesAvailable={gamesWithListedItems} onCancel={() => setShowExportPdf(false)} onSubmit={handleExportListingsPDF} />
         </Modal>
       )}
       {detailGroupSaleResolved && (

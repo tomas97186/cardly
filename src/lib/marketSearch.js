@@ -1,8 +1,8 @@
 // Cardmarket runs a separate marketplace per game under its own URL path (e.g.
-// /it/Pokemon/..., /it/OnePiece/...) — only the two games this app ships by default
-// are mapped directly. Any other game (custom ones the user adds, or "Altro") falls
-// back to a site-scoped Google search so the link still lands somewhere useful.
-const CARDMARKET_GAME_PATH = { pokemon: "Pokemon", onepiece: "OnePiece" };
+// /it/Pokemon/..., /it/OnePiece/...) — only games with a known, confirmed Cardmarket
+// category are mapped directly. Any other game (custom ones the user adds, or "Altro")
+// falls back to a site-scoped Google search so the link still lands somewhere useful.
+const CARDMARKET_GAME_PATH = { pokemon: "Pokemon", onepiece: "OnePiece", magic: "Magic", riftbound: "Riftbound", lorcana: "Lorcana" };
 
 function searchQuery(name, cardNumber) {
   return [name, cardNumber].filter(Boolean).join(" ").trim();

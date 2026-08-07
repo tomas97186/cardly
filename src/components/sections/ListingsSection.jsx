@@ -1,4 +1,4 @@
-import { Search, Megaphone, Link2 } from "lucide-react";
+import { Megaphone, Link2, FileDown } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
@@ -8,15 +8,15 @@ import { FilterToggle } from "../ui/FilterToggle";
 import { SortSelect } from "../ui/SortSelect";
 import { Badge } from "../ui/Badge";
 import { PhotoThumb } from "../ui/Photo";
+import { GhostButton } from "../ui/Buttons";
 
 export function ListingsSection({
   allListedUnits, totalListedValue, rawListedUnitsCount,
-  listingSearch, setListingSearch,
   showListingFilters, setShowListingFilters,
   listingPlatforms, listingPlatformFilter, setListingPlatformFilter,
   listingPriceMin, setListingPriceMin, listingPriceMax, setListingPriceMax,
   sortListings, setSortListings,
-  onOpenUnit,
+  onOpenUnit, onExportPdf,
 }) {
   const { GAME_META } = useCatalog();
   const { t } = useLanguage();
@@ -33,10 +33,11 @@ export function ListingsSection({
         </div>
       </div>
 
-      <div className="relative mb-3">
-        <Search size={15} style={{ position: "absolute", left: 12, top: 11 }} color={C.textFaint} />
-        <TextInput value={listingSearch} onChange={(e) => setListingSearch(e.target.value)} placeholder={t("listings.searchPlaceholder")} style={{ paddingLeft: 34 }} />
-      </div>
+      {rawListedUnitsCount > 0 && (
+        <GhostButton full onClick={onExportPdf} style={{ marginBottom: 12 }}>
+          <FileDown size={14} /> {t("pdfExport.menuButton")}
+        </GhostButton>
+      )}
 
       <div className="flex items-center justify-between gap-2 mb-3">
         <span className="text-[11.5px] flex-shrink-0" style={{ color: C.textFaint }}>{t("listings.results", { count: allListedUnits.length })}</span>
