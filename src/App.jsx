@@ -8,6 +8,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useAndroidBackButton } from "./hooks/useAndroidBackButton";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { CatalogProvider, useCatalog } from "./context/CatalogContext";
+import { LanguageProvider, useLanguage } from "./context/LanguageContext";
 import { C } from "./lib/theme";
 import { uid, todayISO, cardDisplayName } from "./lib/format";
 import { getPeriodRange, makeInRange } from "./lib/period";
@@ -36,21 +37,31 @@ import { ListingsSection } from "./components/sections/ListingsSection";
 import { SalesSection } from "./components/sections/SalesSection";
 import { SettingsSection } from "./components/sections/SettingsSection";
 
-// Shared between the mobile bottom tab bar and the desktop sidebar nav.
+// Shared between the mobile bottom tab bar and the desktop sidebar nav — labels are
+// translation keys, resolved via t() at render time so they react to language changes.
 const NAV_ITEMS = [
-  ["dashboard", "Dashboard", LayoutGrid],
-  ["inventory", "Inventario", Package],
-  ["listings", "In vendita", Megaphone],
-  ["sales", "Vendite", ShoppingBag],
+  ["dashboard", "nav.dashboard", LayoutGrid],
+  ["inventory", "nav.inventory", Package],
+  ["listings", "nav.listings", Megaphone],
+  ["sales", "nav.sales", ShoppingBag],
 ];
 
 export default function App() {
+  return (
+    <LanguageProvider>
+      <AppGate />
+    </LanguageProvider>
+  );
+}
+
+function AppGate() {
   const auth = useAuth();
+  const { t } = useLanguage();
 
   if (auth.status === "checking") {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm" style={{ background: C.bg, color: C.textFaint }}>
-        Caricamento...
+        {t("common.loading")}
       </div>
     );
   }
@@ -66,6 +77,7 @@ export default function App() {
 
 function AppInner({ auth }) {
   const catalog = useCatalog();
+  const { t } = useLanguage();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -381,7 +393,7 @@ function AppInner({ auth }) {
   }
 
   async function handleExportCSV() {
-    exportInventoryCSV(items, catalog.GAME_META);
+    exportInventoryCSV(items, catalog.GAME_META, t);
   }
 
   // ---- derived data ----
@@ -474,7 +486,7 @@ function AppInner({ auth }) {
 
   const rawListedUnits = [
     ...listedSingola.map((i) => ({ id: i.id, kind: "singola", name: cardDisplayName(i.name, i.cardNumber), game: i.game, photoKey: i.photoKeys?.[0], listing: i.listing })),
-    ...listedLotCards.map((c) => ({ id: c.id, kind: "lotto", lotId: c.lotId, name: `${c.lotName} › ${cardDisplayName(c.name || "Carta", c.cardNumber)}`, game: c.game, photoKey: c.photoKeys?.[0], listing: c.listing })),
+    ...listedLotCards.map((c) => ({ id: c.id, kind: "lotto", lotId: c.lotId, name: `${c.lotName} › ${cardDisplayName(c.name || t("common.unnamedCard"), c.cardNumber)}`, game: c.game, photoKey: c.photoKeys?.[0], listing: c.listing })),
   ];
   const listingPlatforms = [...new Set(rawListedUnits.map((u) => u.listing?.platform).filter(Boolean))].sort();
   const filteredListedUnits = rawListedUnits
@@ -518,13 +530,13 @@ function AppInner({ auth }) {
       if (it.kind === "singola") {
         if (it.sale && it.sale.groupId === groupId) {
           sale = it.sale;
-          members.push({ id: it.id, kind: "singola", name: cardDisplayName(it.name, it.cardNumber), cost: it.unitCost, photoKey: it.photoKeys?.[0], sourceLabel: "Carta singola" });
+          members.push({ id: it.id, kind: "singola", name: cardDisplayName(it.name, it.cardNumber), cost: it.unitCost, photoKey: it.photoKeys?.[0], sourceLabel: t("forms.singleCard") });
         }
       } else {
         for (const c of it.cards) {
           if (c.sale && c.sale.groupId === groupId) {
             sale = c.sale;
-            members.push({ id: c.id, kind: "lotto", lotId: it.id, name: cardDisplayName(c.name || "Carta senza nome", c.cardNumber), cost: c.assignedCost, photoKey: c.photoKeys?.[0] || it.photoKeys?.[0], sourceLabel: `Lotto: ${it.lotName}` });
+            members.push({ id: c.id, kind: "lotto", lotId: it.id, name: cardDisplayName(c.name || t("common.unnamedCard"), c.cardNumber), cost: c.assignedCost, photoKey: c.photoKeys?.[0] || it.photoKeys?.[0], sourceLabel: t("details.groupSaleSourceLabel", { lotName: it.lotName }) });
           }
         }
       }
@@ -589,7 +601,7 @@ function AppInner({ auth }) {
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors"
               style={{ background: view === val ? C.surfaceAlt : "transparent", color: view === val ? C.gold : C.textDim }}
             >
-              <Icon size={18} /> {label}
+              <Icon size={18} /> {t(label)}
             </button>
           ))}
         </nav>
@@ -599,14 +611,14 @@ function AppInner({ auth }) {
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium"
             style={{ color: C.textDim }}
           >
-            <Search size={18} /> Cerca
+            <Search size={18} /> {t("nav.search")}
           </button>
           <button
             onClick={() => setView("settings")}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium"
             style={{ background: view === "settings" ? C.surfaceAlt : "transparent", color: view === "settings" ? C.gold : C.textDim }}
           >
-            <SettingsIcon size={18} /> Impostazioni
+            <SettingsIcon size={18} /> {t("nav.settings")}
           </button>
         </div>
       </aside>
@@ -619,15 +631,15 @@ function AppInner({ auth }) {
           </h1>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setShowGlobalSearch(true)} title="Cerca ovunque" style={{ color: C.textDim }} className="p-2 rounded-lg"><Search size={18} /></button>
-          <button onClick={() => setView("settings")} title="Impostazioni" style={{ color: view === "settings" ? C.gold : C.textDim }} className="p-2 rounded-lg"><SettingsIcon size={18} /></button>
+          <button onClick={() => setShowGlobalSearch(true)} title={t("app.searchEverywhere")} style={{ color: C.textDim }} className="p-2 rounded-lg"><Search size={18} /></button>
+          <button onClick={() => setView("settings")} title={t("nav.settings")} style={{ color: view === "settings" ? C.gold : C.textDim }} className="p-2 rounded-lg"><SettingsIcon size={18} /></button>
         </div>
       </div>
 
       <div key={loading ? "loading" : view} className="anim-fade-in flex-1 min-w-0 min-h-0 overflow-y-auto px-5 py-5 pb-24 lg:px-10 lg:py-8 lg:pb-10">
         <div className="lg:max-w-6xl lg:mx-auto">
         {loading ? (
-          <div className="text-center py-16 text-sm" style={{ color: C.textFaint }}>Caricamento inventario...</div>
+          <div className="text-center py-16 text-sm" style={{ color: C.textFaint }}>{t("common.loadingInventory")}</div>
         ) : view === "dashboard" ? (
           <DashboardSection
             period={period} setPeriod={setPeriod} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo}
@@ -688,7 +700,7 @@ function AppInner({ auth }) {
       <div className="lg:hidden flex items-center justify-around py-2.5 relative z-20" style={{ background: C.surface, borderTop: `1px solid ${C.border}` }}>
         {NAV_ITEMS.map(([val, label, Icon]) => (
           <button key={val} onClick={() => setView(val)} className="flex flex-col items-center gap-1 px-3 py-1" style={{ color: view === val ? C.gold : C.textFaint }}>
-            <Icon size={19} /><span className="text-[10.5px] font-medium">{label}</span>
+            <Icon size={19} /><span className="text-[10.5px] font-medium">{t(label)}</span>
           </button>
         ))}
       </div>
@@ -704,7 +716,7 @@ function AppInner({ auth }) {
         />
       )}
       {showAdd && (
-        <Modal title="Nuovo acquisto" onClose={() => setShowAdd(false)} wide>
+        <Modal title={t("app.newPurchase")} onClose={() => setShowAdd(false)} wide>
           <AddPurchaseForm onCancel={() => setShowAdd(false)} onSubmit={handleAddPurchase} />
         </Modal>
       )}
@@ -726,17 +738,17 @@ function AppInner({ auth }) {
         />
       )}
       {editItem && (
-        <Modal title="Modifica carta" onClose={() => setEditItemId(null)} wide>
+        <Modal title={t("app.editCard")} onClose={() => setEditItemId(null)} wide>
           <EditItemForm item={editItem} onCancel={() => setEditItemId(null)} onSubmit={(changes) => handleUpdateItem(editItem.id, changes)} onDelete={() => handleDeleteItem(editItem.id)} />
         </Modal>
       )}
       {sellItem && (
-        <Modal title="Registra vendita" onClose={() => setSellItemId(null)}>
+        <Modal title={t("forms.registerSale")} onClose={() => setSellItemId(null)}>
           <SaleForm item={sellItem} onCancel={() => setSellItemId(null)} onSubmit={(saleData) => handleRegisterSale(sellItem.id, saleData)} />
         </Modal>
       )}
       {listingItem && (
-        <Modal title={listingItem.listing ? "Modifica annuncio" : "Metti in vendita"} onClose={() => setListingItemId(null)}>
+        <Modal title={listingItem.listing ? t("app.editListing") : t("app.newListing")} onClose={() => setListingItemId(null)}>
           <ListingForm item={listingItem} initial={listingItem.listing} onCancel={() => setListingItemId(null)} onSubmit={(form) => handleListItem(listingItem.id, form)} />
         </Modal>
       )}
@@ -751,17 +763,17 @@ function AppInner({ auth }) {
         />
       )}
       {editLot && (
-        <Modal title="Modifica lotto" onClose={() => setEditLotId(null)} wide>
+        <Modal title={t("app.editLot")} onClose={() => setEditLotId(null)} wide>
           <EditLotForm lot={editLot} onCancel={() => setEditLotId(null)} onSubmit={(changes) => handleUpdateLot(editLot.id, changes)} onDelete={() => handleDeleteLot(editLot.id)} />
         </Modal>
       )}
       {addCardLot && (
-        <Modal title="Aggiungi carta al lotto" onClose={() => setAddCardLotId(null)} eyebrow={addCardLot.lotName} wide>
+        <Modal title={t("app.addCardToLot")} onClose={() => setAddCardLotId(null)} eyebrow={addCardLot.lotName} wide>
           <LotCardForm lot={addCardLot} onCancel={() => setAddCardLotId(null)} onSubmit={(form) => handleAddLotCard(addCardLot.id, form)} />
         </Modal>
       )}
       {showBulkSale && (
-        <Modal title={bulkSaleCount > 1 ? "Vendita multipla" : "Registra vendita"} onClose={() => setShowBulkSale(false)} eyebrow="Cerca e aggiungi le carte da vendere insieme" wide>
+        <Modal title={bulkSaleCount > 1 ? t("app.bulkSale") : t("forms.registerSale")} onClose={() => setShowBulkSale(false)} eyebrow={t("app.bulkSaleEyebrow")} wide>
           <BulkSaleWizard items={items} onCancel={() => setShowBulkSale(false)} onSubmit={(refs, saleData) => handleBulkSell(refs, saleData)} onSelectionChange={setBulkSaleCount} />
         </Modal>
       )}
@@ -797,7 +809,7 @@ function AppInner({ auth }) {
         />
       )}
       {editLotCardResolved && (
-        <Modal title="Modifica carta" onClose={() => setEditLotCard(null)} eyebrow={editLotCardResolved.lot.lotName} wide>
+        <Modal title={t("app.editCard")} onClose={() => setEditLotCard(null)} eyebrow={editLotCardResolved.lot.lotName} wide>
           <LotCardForm
             lot={editLotCardResolved.lot}
             initial={editLotCardResolved.card}
@@ -808,18 +820,18 @@ function AppInner({ auth }) {
         </Modal>
       )}
       {sellLotCardResolved && (
-        <Modal title="Registra vendita" onClose={() => setSellLotCard(null)} eyebrow={sellLotCardResolved.lot.lotName}>
+        <Modal title={t("forms.registerSale")} onClose={() => setSellLotCard(null)} eyebrow={sellLotCardResolved.lot.lotName}>
           <SaleForm
-            item={{ name: sellLotCardResolved.card.name || "Carta senza nome", unitCost: sellLotCardResolved.card.assignedCost, photoKey: sellLotCardResolved.card.photoKeys?.[0] || sellLotCardResolved.lot.photoKeys?.[0], listing: sellLotCardResolved.card.listing }}
+            item={{ name: sellLotCardResolved.card.name || t("common.unnamedCard"), unitCost: sellLotCardResolved.card.assignedCost, photoKey: sellLotCardResolved.card.photoKeys?.[0] || sellLotCardResolved.lot.photoKeys?.[0], listing: sellLotCardResolved.card.listing }}
             onCancel={() => setSellLotCard(null)}
             onSubmit={(saleData) => handleSellLotCard(sellLotCardResolved.lot.id, sellLotCardResolved.card.id, saleData)}
           />
         </Modal>
       )}
       {listingLotCardResolved && (
-        <Modal title={listingLotCardResolved.card.listing ? "Modifica annuncio" : "Metti in vendita"} onClose={() => setListingLotCard(null)} eyebrow={listingLotCardResolved.lot.lotName}>
+        <Modal title={listingLotCardResolved.card.listing ? t("app.editListing") : t("app.newListing")} onClose={() => setListingLotCard(null)} eyebrow={listingLotCardResolved.lot.lotName}>
           <ListingForm
-            item={{ name: listingLotCardResolved.card.name || "Carta senza nome", photoKey: listingLotCardResolved.card.photoKeys?.[0] || listingLotCardResolved.lot.photoKeys?.[0] }}
+            item={{ name: listingLotCardResolved.card.name || t("common.unnamedCard"), photoKey: listingLotCardResolved.card.photoKeys?.[0] || listingLotCardResolved.lot.photoKeys?.[0] }}
             initial={listingLotCardResolved.card.listing}
             onCancel={() => setListingLotCard(null)}
             onSubmit={(form) => handleListLotCard(listingLotCardResolved.lot.id, listingLotCardResolved.card.id, form)}

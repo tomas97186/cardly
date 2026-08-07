@@ -4,6 +4,7 @@ import { Camera, ImageOff, X, ChevronLeft, ChevronRight, Download } from "lucide
 import { C } from "../../lib/theme";
 import { loadPhotoValue, loadPhotoValues } from "../../lib/storage";
 import { resizeImage } from "../../lib/image";
+import { useLanguage } from "../../context/LanguageContext";
 
 // `photoKeys`, when passed, makes the thumb clickable and opens the full-screen
 // lightbox over the whole set (starting at index 0) — used for cover thumbnails in
@@ -46,6 +47,7 @@ export function PhotoThumb({ photoKey, photoKeys, fileNamePrefix, size = "100%",
 // (existing photos already loaded, plus any newly added ones); the first photo is
 // the cover shown everywhere else in the app. ----------
 export function PhotoPicker({ value, onChange, max = 6 }) {
+  const { t } = useLanguage();
   const inputId = useId();
   const canAddMore = value.length < max;
 
@@ -70,7 +72,7 @@ export function PhotoPicker({ value, onChange, max = 6 }) {
             <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             {idx === 0 && value.length > 1 && (
               <span style={{ position: "absolute", left: 3, bottom: 3, background: "rgba(6,7,12,0.72)", color: C.gold, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                Copertina
+                {t("photo.cover")}
               </span>
             )}
             <button
@@ -92,7 +94,7 @@ export function PhotoPicker({ value, onChange, max = 6 }) {
         )}
       </div>
       <span className="block text-[11px] mt-1.5" style={{ color: C.textFaint }}>
-        {value.length === 0 ? "Nessuna foto" : `${value.length} / ${max} foto`}{value.length > 1 ? " — la prima è la copertina" : ""}
+        {value.length === 0 ? t("photo.none") : t("photo.pickerCount", { count: value.length, max })}{value.length > 1 ? t("photo.firstIsCover") : ""}
       </span>
       <input
         id={inputId} type="file" accept="image/*" multiple className="hidden"
@@ -108,6 +110,7 @@ export function PhotoPicker({ value, onChange, max = 6 }) {
 // ---------- Read-only gallery for detail views: a row of thumbnails that open a
 // full-screen lightbox with prev/next navigation. ----------
 export function PhotoGallery({ photoKeys, fileNamePrefix, size = 72 }) {
+  const { t } = useLanguage();
   const [urls, setUrls] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
@@ -133,9 +136,9 @@ export function PhotoGallery({ photoKeys, fileNamePrefix, size = 72 }) {
   return (
     <>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] uppercase tracking-widest" style={{ color: C.textFaint }}>{urls.length} foto</span>
+        <span className="text-[11px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("photo.photoCount", { count: urls.length })}</span>
         <button onClick={handleDownloadAll} disabled={downloadingAll} className="flex items-center gap-1.5 text-[12px] font-medium" style={{ color: downloadingAll ? C.textFaint : C.info }}>
-          <Download size={13} /> {downloadingAll ? "Scaricamento..." : "Scarica tutte"}
+          <Download size={13} /> {downloadingAll ? t("photo.downloading") : t("photo.downloadAll")}
         </button>
       </div>
       <div className="flex gap-2 overflow-x-auto pb-1 mb-4">
@@ -198,6 +201,7 @@ async function downloadAllPhotos(urls, prefix) {
 }
 
 function Lightbox({ urls, index, onNavigate, onClose, fileNamePrefix }) {
+  const { t } = useLanguage();
   // Rendered via a portal straight onto <body>: Modal's overlay uses backdropFilter,
   // which (like `transform`) creates a new containing block for `position: fixed`
   // descendants — without the portal, this would end up fixed to the Modal instead
@@ -207,7 +211,7 @@ function Lightbox({ urls, index, onNavigate, onClose, fileNamePrefix }) {
       <button
         onClick={(e) => { e.stopPropagation(); downloadPhoto(urls[index], index, fileNamePrefix); }}
         style={{ position: "absolute", top: 16, right: 56, color: "#fff" }}
-        title="Scarica foto"
+        title={t("photo.downloadOne")}
       >
         <Download size={22} />
       </button>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Mail, Layers } from "lucide-react";
 import { C } from "../../lib/theme";
+import { useLanguage } from "../../context/LanguageContext";
 import { Field } from "../ui/Field";
 import { TextInput } from "../ui/Inputs";
 import { PrimaryButton, GhostButton } from "../ui/Buttons";
@@ -8,6 +9,7 @@ import { PrimaryButton, GhostButton } from "../ui/Buttons";
 // Full-screen gate rendered whenever there's no Supabase session — nothing behind it
 // (CatalogProvider, AppInner) ever mounts until auth.status === "signed-in".
 export function LoginScreen({ auth }) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState("signin"); // signin | signup
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +35,7 @@ export function LoginScreen({ auth }) {
       if (mode === "signin") await auth.signInWithPassword(email.trim(), password);
       else {
         await auth.signUpWithPassword(email.trim(), password);
-        setNotice("Account creato. Se richiesto, controlla la tua email per confermare l'indirizzo.");
+        setNotice(t("auth.accountCreatedNotice"));
       }
     } catch {
       // auth.errorMsg is already set by the hook, shown below.
@@ -48,7 +50,7 @@ export function LoginScreen({ auth }) {
     setNotice("");
     try {
       await auth.signInWithOtp(email.trim());
-      setNotice("Ti abbiamo inviato un link di accesso via email.");
+      setNotice(t("auth.magicLinkSentNotice"));
     } catch {
       // auth.errorMsg is already set by the hook, shown below.
     } finally {
@@ -70,23 +72,23 @@ export function LoginScreen({ auth }) {
             <span style={{ color: C.text }}>Card</span><span style={{ color: C.gold }}>ly</span>
           </h1>
           <p className="text-[13px] mt-2 leading-relaxed" style={{ color: C.textDim }}>
-            Gestisci acquisti, catalogazione e vendite della tua collezione di carte —
-            <br className="hidden sm:block" /> con margini e magazzino sempre sotto controllo.
+            {t("auth.tagline1")}
+            <br className="hidden sm:block" /> {t("auth.tagline2")}
           </p>
           <p className="text-[12.5px] mt-3" style={{ color: C.textFaint }}>
-            {mode === "signin" ? "Accedi al tuo account" : "Crea un nuovo account"}
+            {mode === "signin" ? t("auth.signIn") : t("auth.signUp")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <Field label="Email">
+          <Field label={t("auth.email")}>
             <TextInput type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@esempio.it" />
           </Field>
-          <Field label="Password" hint={mode === "signup" ? "Almeno 6 caratteri." : undefined}>
+          <Field label={t("auth.password")} hint={mode === "signup" ? t("auth.passwordHint") : undefined}>
             <TextInput type="password" autoComplete={mode === "signin" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           </Field>
           {mode === "signup" && (
-            <Field label="Ripeti password" hint={passwordsMismatch ? "Le due password non coincidono." : undefined}>
+            <Field label={t("auth.repeatPassword")} hint={passwordsMismatch ? t("auth.passwordMismatch") : undefined}>
               <TextInput type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
             </Field>
           )}
@@ -103,12 +105,12 @@ export function LoginScreen({ auth }) {
           )}
 
           <PrimaryButton type="submit" full disabled={!valid || submitting}>
-            {submitting ? "Attendere..." : mode === "signin" ? "Accedi" : "Crea account"}
+            {submitting ? t("auth.waiting") : mode === "signin" ? t("auth.signInButton") : t("auth.createAccount")}
           </PrimaryButton>
         </form>
 
         <GhostButton full style={{ marginTop: 10 }} disabled={!email.trim() || submitting} onClick={handleMagicLink}>
-          <Mail size={14} /> Inviami un link di accesso via email
+          <Mail size={14} /> {t("auth.magicLink")}
         </GhostButton>
 
         <button
@@ -116,7 +118,7 @@ export function LoginScreen({ auth }) {
           style={{ color: C.textDim }}
           onClick={switchMode}
         >
-          {mode === "signin" ? "Non hai un account? Registrati" : "Hai già un account? Accedi"}
+          {mode === "signin" ? t("auth.noAccount") : t("auth.hasAccount")}
         </button>
       </div>
     </div>

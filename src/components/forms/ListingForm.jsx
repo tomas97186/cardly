@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tag } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { todayISO } from "../../lib/format";
 import { Field } from "../ui/Field";
 import { TextInput, TextArea } from "../ui/Inputs";
@@ -11,6 +12,7 @@ import { GhostButton, PrimaryButton } from "../ui/Buttons";
 // ---------- Listing form (mark an item as "for sale" with asking price / platform / link) ----------
 export function ListingForm({ item, initial, onCancel, onSubmit }) {
   const { platforms } = useCatalog();
+  const { t } = useLanguage();
   const [price, setPrice] = useState(initial ? String(initial.price) : "");
   const [platform, setPlatform] = useState(initial ? initial.platform || "" : "");
   const [link, setLink] = useState(initial ? initial.link || "" : "");
@@ -37,20 +39,20 @@ export function ListingForm({ item, initial, onCancel, onSubmit }) {
         <div className="text-sm font-medium">{item.name}</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Prezzo richiesto (€) *"><TextInput type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" /></Field>
-        <Field label="Data messa in vendita"><TextInput type="date" value={listedDate} onChange={(e) => setListedDate(e.target.value)} /></Field>
+        <Field label={t("forms.askingPrice")}><TextInput type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" /></Field>
+        <Field label={t("forms.listedDate")}><TextInput type="date" value={listedDate} onChange={(e) => setListedDate(e.target.value)} /></Field>
       </div>
-      <Field label="Piattaforma">
-        <TextInput value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder="Es. Vinted, eBay, Cardmarket..." list="platform-options" />
+      <Field label={t("forms.platform")}>
+        <TextInput value={platform} onChange={(e) => setPlatform(e.target.value)} placeholder={t("forms.platformPlaceholder")} list="platform-options" />
         <datalist id="platform-options">{platforms.map((p) => <option key={p} value={p} />)}</datalist>
       </Field>
-      <Field label="Link dell'annuncio" hint="Facoltativo. Incolla il link dell'inserzione così lo ritrovi subito.">
+      <Field label={t("forms.listingLink")} hint={t("forms.listingLinkHint")}>
         <TextInput type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." />
       </Field>
-      <Field label="Note"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Es. disponibile a trattativa, spedizione inclusa..." /></Field>
+      <Field label={t("common.notes")}><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("forms.listingNotesPlaceholder")} /></Field>
       <div className="flex gap-3 mt-2">
-        <GhostButton full onClick={onCancel}>Annulla</GhostButton>
-        <PrimaryButton full disabled={!valid || saving} onClick={handleSubmit}>{saving ? "Salvataggio..." : <><Tag size={16} /> {initial ? "Salva annuncio" : "Metti in vendita"}</>}</PrimaryButton>
+        <GhostButton full onClick={onCancel}>{t("common.cancel")}</GhostButton>
+        <PrimaryButton full disabled={!valid || saving} onClick={handleSubmit}>{saving ? t("common.saving") : <><Tag size={16} /> {initial ? t("forms.saveListing") : t("forms.putUpForSale")}</>}</PrimaryButton>
       </div>
     </div>
   );

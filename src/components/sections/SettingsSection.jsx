@@ -1,11 +1,12 @@
 import { useState } from "react";
 import {
   User, LogOut, KeyRound, ShieldCheck, ShieldAlert, Package, Clock, Gamepad2, Tag, Plus, X, FileText,
-  ChevronRight, ChevronLeft, Award, Info, AlertTriangle, Scale, FileCheck, Code2, Mail,
+  ChevronRight, ChevronLeft, Award, Info, AlertTriangle, Scale, FileCheck, Code2, Mail, Languages, Check,
 } from "lucide-react";
 import { C } from "../../lib/theme";
 import { fmtDate } from "../../lib/format";
 import { SUPPORT_EMAIL } from "../../lib/appConfig";
+import { useLanguage } from "../../context/LanguageContext";
 import { Modal } from "../ui/Modal";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
 import { Field } from "../ui/Field";
@@ -17,18 +18,19 @@ const APP_VERSION = "1.0.0";
 // ---------- Settings home: a menu of categories instead of every option stacked on
 // one page, so it stays manageable as more settings are added. ----------
 export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
-  const [panel, setPanel] = useState(null); // null (menu) | "account" | "catalog" | "data" | "about"
+  const { t, lang } = useLanguage();
+  const [panel, setPanel] = useState(null); // null (menu) | "account" | "catalog" | "data" | "language" | "about"
 
   if (panel === "account") {
     return (
-      <SettingsPanel title="Account" onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.account")} onBack={() => setPanel(null)}>
         <AccountPanel auth={auth} itemCount={itemCount} />
       </SettingsPanel>
     );
   }
   if (panel === "catalog") {
     return (
-      <SettingsPanel title="Catalogo" onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.catalog")} onBack={() => setPanel(null)}>
         <GamesEditor catalog={catalog} />
         <PlatformsEditor catalog={catalog} />
         <GradingCompaniesEditor catalog={catalog} />
@@ -37,14 +39,21 @@ export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
   }
   if (panel === "data") {
     return (
-      <SettingsPanel title="Esportazione CSV" onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.csvExport")} onBack={() => setPanel(null)}>
         <CSVPanel itemCount={itemCount} onExportCSV={onExportCSV} />
+      </SettingsPanel>
+    );
+  }
+  if (panel === "language") {
+    return (
+      <SettingsPanel title={t("settings.language")} onBack={() => setPanel(null)}>
+        <LanguagePanel />
       </SettingsPanel>
     );
   }
   if (panel === "about") {
     return (
-      <SettingsPanel title="Informazioni" onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.about")} onBack={() => setPanel(null)}>
         <AboutPanel />
       </SettingsPanel>
     );
@@ -52,19 +61,20 @@ export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold mb-3" style={{ color: C.textDim }}>Impostazioni</h3>
+      <h3 className="text-sm font-semibold mb-3" style={{ color: C.textDim }}>{t("settings.title")}</h3>
       <div className="space-y-2">
         {auth.configured && (
           <SettingsMenuItem
             icon={User}
-            title="Account"
+            title={t("settings.account")}
             subtitle={auth.user?.email || ""}
             onClick={() => setPanel("account")}
           />
         )}
-        <SettingsMenuItem icon={Gamepad2} title="Catalogo" subtitle={`${catalog.games.length} giochi, ${catalog.platforms.length} piattaforme, ${catalog.gradingCompanies.length} case di gradazione`} onClick={() => setPanel("catalog")} />
-        <SettingsMenuItem icon={FileText} title="Esportazione CSV" subtitle="Scarica un foglio con carte, lotti e vendite" onClick={() => setPanel("data")} />
-        <SettingsMenuItem icon={Info} title="Informazioni" subtitle="Versione, privacy, termini e licenze" onClick={() => setPanel("about")} />
+        <SettingsMenuItem icon={Gamepad2} title={t("settings.catalog")} subtitle={t("settings.catalogSubtitle", { games: catalog.games.length, platforms: catalog.platforms.length, grading: catalog.gradingCompanies.length })} onClick={() => setPanel("catalog")} />
+        <SettingsMenuItem icon={Languages} title={t("settings.language")} subtitle={lang === "en" ? t("settings.langEnglish") : t("settings.langItalian")} onClick={() => setPanel("language")} />
+        <SettingsMenuItem icon={FileText} title={t("settings.csvExport")} subtitle={t("settings.csvExportSubtitle")} onClick={() => setPanel("data")} />
+        <SettingsMenuItem icon={Info} title={t("settings.about")} subtitle={t("settings.aboutSubtitle")} onClick={() => setPanel("about")} />
       </div>
     </div>
   );
@@ -86,10 +96,11 @@ function SettingsMenuItem({ icon: Icon, title, subtitle, onClick }) {
 }
 
 function SettingsPanel({ title, onBack, children }) {
+  const { t } = useLanguage();
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1 mb-3 text-[12.5px]" style={{ color: C.textDim }}>
-        <ChevronLeft size={15} /> Impostazioni
+        <ChevronLeft size={15} /> {t("settings.title")}
       </button>
       <h3 className="text-sm font-semibold mb-3">{title}</h3>
       <div className="space-y-3">{children}</div>
@@ -97,7 +108,33 @@ function SettingsPanel({ title, onBack, children }) {
   );
 }
 
+function LanguagePanel() {
+  const { t, lang, setLang } = useLanguage();
+  const options = [["it", t("settings.langItalian")], ["en", t("settings.langEnglish")]];
+  return (
+    <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <div className="flex items-center gap-2 mb-3">
+        <Languages size={16} color={C.gold} />
+        <span className="text-sm font-semibold">{t("settings.language")}</span>
+      </div>
+      <div className="space-y-2">
+        {options.map(([val, label]) => (
+          <button
+            key={val} onClick={() => setLang(val)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[13.5px]"
+            style={{ background: lang === val ? C.surfaceAlt : "transparent", border: `1px solid ${lang === val ? C.gold : C.border}`, color: lang === val ? C.gold : C.text }}
+          >
+            {label}
+            {lang === val && <Check size={15} color={C.gold} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function AccountPanel({ auth, itemCount }) {
+  const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
 
@@ -121,39 +158,39 @@ function AccountPanel({ auth, itemCount }) {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold truncate">{email}</div>
-            {memberSince && <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>Membro dal {memberSince}</div>}
+            {memberSince && <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>{t("settings.memberSince", { date: memberSince })}</div>}
           </div>
         </div>
         <div className="mt-3">
           {emailVerified ? (
-            <Badge color={C.teal} bg="rgba(63,179,155,0.14)"><ShieldCheck size={11} style={{ marginRight: 3, marginTop: -1 }} />Email verificata</Badge>
+            <Badge color={C.teal} bg="rgba(63,179,155,0.14)"><ShieldCheck size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.emailVerified")}</Badge>
           ) : (
-            <Badge color={C.amber} bg="rgba(201,138,58,0.14)"><ShieldAlert size={11} style={{ marginRight: 3, marginTop: -1 }} />Email da verificare</Badge>
+            <Badge color={C.amber} bg="rgba(201,138,58,0.14)"><ShieldAlert size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.emailUnverified")}</Badge>
           )}
         </div>
 
         <div className="grid grid-cols-2 gap-2 my-4">
           <div className="p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
-            <div className="flex items-center gap-1.5 text-[10.5px] uppercase" style={{ color: C.textFaint }}><Package size={11} /> In inventario</div>
+            <div className="flex items-center gap-1.5 text-[10.5px] uppercase" style={{ color: C.textFaint }}><Package size={11} /> {t("settings.inInventory")}</div>
             <div className="text-base font-bold mt-1" style={{ color: C.gold }}>{itemCount}</div>
           </div>
           <div className="p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
-            <div className="flex items-center gap-1.5 text-[10.5px] uppercase" style={{ color: C.textFaint }}><Clock size={11} /> Ultimo accesso</div>
+            <div className="flex items-center gap-1.5 text-[10.5px] uppercase" style={{ color: C.textFaint }}><Clock size={11} /> {t("settings.lastSignIn")}</div>
             <div className="text-[12.5px] font-semibold mt-1.5">{lastSignIn || "—"}</div>
           </div>
         </div>
 
         <GhostButton full onClick={() => setShowChangePassword(true)}>
-          <KeyRound size={14} /> Cambia password
+          <KeyRound size={14} /> {t("settings.changePassword")}
         </GhostButton>
       </div>
 
       <GhostButton full onClick={handleSignOut} disabled={busy} style={{ color: C.crimson, borderColor: C.crimsonDim }}>
-        <LogOut size={14} /> {busy ? "Uscita..." : "Logout"}
+        <LogOut size={14} /> {busy ? t("settings.loggingOut") : t("settings.logout")}
       </GhostButton>
 
       {showChangePassword && (
-        <Modal title="Cambia password" onClose={() => setShowChangePassword(false)}>
+        <Modal title={t("settings.changePassword")} onClose={() => setShowChangePassword(false)}>
           <ChangePasswordForm auth={auth} onClose={() => setShowChangePassword(false)} />
         </Modal>
       )}
@@ -162,6 +199,7 @@ function AccountPanel({ auth, itemCount }) {
 }
 
 function ChangePasswordForm({ auth, onClose }) {
+  const { t } = useLanguage();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -176,10 +214,10 @@ function ChangePasswordForm({ auth, onClose }) {
     setMessage(null);
     try {
       await auth.updatePassword(newPassword);
-      setMessage({ text: "Password aggiornata.", isError: false });
+      setMessage({ text: t("settings.passwordUpdated"), isError: false });
       setNewPassword(""); setConfirmPassword("");
     } catch (e) {
-      setMessage({ text: e.message || "Errore durante l'aggiornamento della password.", isError: true });
+      setMessage({ text: e.message || t("settings.passwordUpdateError"), isError: true });
     } finally {
       setBusy(false);
     }
@@ -187,19 +225,19 @@ function ChangePasswordForm({ auth, onClose }) {
 
   return (
     <div>
-      <Field label="Nuova password" hint="Almeno 6 caratteri.">
+      <Field label={t("settings.newPassword")} hint={t("settings.newPasswordHint")}>
         <TextInput type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" />
       </Field>
-      <Field label="Conferma nuova password" hint={mismatch ? "Le due password non coincidono." : undefined}>
+      <Field label={t("settings.confirmNewPassword")} hint={mismatch ? t("settings.passwordMismatch") : undefined}>
         <TextInput type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" />
       </Field>
       {message && (
         <p className="text-[12px] mb-3" style={{ color: message.isError ? C.crimson : C.teal }}>{message.text}</p>
       )}
       <div className="flex gap-3">
-        <GhostButton full onClick={onClose}>Annulla</GhostButton>
+        <GhostButton full onClick={onClose}>{t("common.cancel")}</GhostButton>
         <PrimaryButton full onClick={handleSubmit} disabled={!valid || busy}>
-          {busy ? "Aggiornamento..." : "Aggiorna password"}
+          {busy ? t("settings.updating") : t("settings.updatePassword")}
         </PrimaryButton>
       </div>
     </div>
@@ -207,6 +245,7 @@ function ChangePasswordForm({ auth, onClose }) {
 }
 
 function GamesEditor({ catalog }) {
+  const { t } = useLanguage();
   const { games, addGame, renameGame, removeGame } = catalog;
   const [newLabel, setNewLabel] = useState("");
   const [editingKey, setEditingKey] = useState(null);
@@ -227,7 +266,7 @@ function GamesEditor({ catalog }) {
     <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-2 mb-3">
         <Gamepad2 size={16} color={C.gold} />
-        <span className="text-sm font-semibold">Giochi gestiti</span>
+        <span className="text-sm font-semibold">{t("settings.gamesManaged")}</span>
       </div>
       <div className="space-y-2 mb-3">
         {games.map((g) => (
@@ -249,7 +288,7 @@ function GamesEditor({ catalog }) {
         ))}
       </div>
       <div className="flex gap-2">
-        <TextInput value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Nuovo gioco, es. Magic" onKeyDown={(e) => e.key === "Enter" && commitAdd()} />
+        <TextInput value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder={t("settings.newGamePlaceholder")} onKeyDown={(e) => e.key === "Enter" && commitAdd()} />
         <GhostButton onClick={commitAdd} style={{ padding: "10px 14px" }}><Plus size={16} /></GhostButton>
       </div>
     </div>
@@ -257,6 +296,7 @@ function GamesEditor({ catalog }) {
 }
 
 function PlatformsEditor({ catalog }) {
+  const { t } = useLanguage();
   const { platforms, addPlatform, removePlatform } = catalog;
   const [newName, setNewName] = useState("");
 
@@ -270,7 +310,7 @@ function PlatformsEditor({ catalog }) {
     <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-2 mb-3">
         <Tag size={16} color={C.gold} />
-        <span className="text-sm font-semibold">Piattaforme di vendita</span>
+        <span className="text-sm font-semibold">{t("settings.sellingPlatforms")}</span>
       </div>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {platforms.map((p) => (
@@ -281,7 +321,7 @@ function PlatformsEditor({ catalog }) {
         ))}
       </div>
       <div className="flex gap-2">
-        <TextInput value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nuova piattaforma" onKeyDown={(e) => e.key === "Enter" && commitAdd()} />
+        <TextInput value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("settings.newPlatformPlaceholder")} onKeyDown={(e) => e.key === "Enter" && commitAdd()} />
         <GhostButton onClick={commitAdd} style={{ padding: "10px 14px" }}><Plus size={16} /></GhostButton>
       </div>
     </div>
@@ -289,6 +329,7 @@ function PlatformsEditor({ catalog }) {
 }
 
 function GradingCompaniesEditor({ catalog }) {
+  const { t } = useLanguage();
   const { gradingCompanies, addGradingCompany, removeGradingCompany } = catalog;
   const [newName, setNewName] = useState("");
 
@@ -302,7 +343,7 @@ function GradingCompaniesEditor({ catalog }) {
     <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-2 mb-3">
         <Award size={16} color={C.gold} />
-        <span className="text-sm font-semibold">Case di gradazione</span>
+        <span className="text-sm font-semibold">{t("settings.gradingCompanies")}</span>
       </div>
       <div className="flex flex-wrap gap-1.5 mb-3">
         {gradingCompanies.map((g) => (
@@ -313,7 +354,7 @@ function GradingCompaniesEditor({ catalog }) {
         ))}
       </div>
       <div className="flex gap-2">
-        <TextInput value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Es. AGS" onKeyDown={(e) => e.key === "Enter" && commitAdd()} />
+        <TextInput value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("settings.newGradingPlaceholder")} onKeyDown={(e) => e.key === "Enter" && commitAdd()} />
         <GhostButton onClick={commitAdd} style={{ padding: "10px 14px" }}><Plus size={16} /></GhostButton>
       </div>
     </div>
@@ -321,9 +362,10 @@ function GradingCompaniesEditor({ catalog }) {
 }
 
 function AboutPanel() {
+  const { t } = useLanguage();
   const emailNode = SUPPORT_EMAIL
     ? <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: C.info }}>{SUPPORT_EMAIL}</a>
-    : "[email da inserire]";
+    : t("settings.emailToBeAdded");
 
   return (
     <>
@@ -337,44 +379,42 @@ function AboutPanel() {
           </span>
         </div>
         <div className="text-sm font-semibold">Cardly</div>
-        <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>Versione {APP_VERSION}</div>
+        <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>{t("settings.version", { version: APP_VERSION })}</div>
         <p className="text-[12.5px] mt-2" style={{ color: C.textDim }}>
-          Gestione acquisti, catalogazione e vendite per collezioni di carte collezionabili.
+          {t("settings.aboutDescription")}
         </p>
       </div>
 
       <div className="flex gap-2 items-start p-3 rounded-xl" style={{ background: "rgba(201,138,58,0.12)" }}>
         <AlertTriangle size={14} color={C.amber} style={{ marginTop: 1, flexShrink: 0 }} />
         <span className="text-[12px]" style={{ color: C.amber }}>
-          I testi di questa sezione sono una bozza di base, non una consulenza legale. Prima di
-          pubblicare l'app o introdurre funzioni a pagamento, falli rivedere da un professionista
-          (in particolare per la conformità GDPR) e completa i punti segnati "da inserire".
+          {t("settings.aboutDisclaimer")}
         </span>
       </div>
 
-      <AboutSection icon={Scale} title="Informativa sulla privacy">
-        <AboutP><b>Titolare del trattamento:</b> {SUPPORT_EMAIL ? <>contattabile all'indirizzo {emailNode} (nome/ragione sociale da inserire)</> : "[nome/ragione sociale ed email da inserire]"}.</AboutP>
-        <AboutP><b>Dati raccolti:</b> indirizzo email e password per l'account; i dati che inserisci nell'inventario (carte, lotti, prezzi, vendite, note); le foto che carichi.</AboutP>
-        <AboutP><b>Dove sono conservati:</b> su Supabase (database, autenticazione e storage foto), con accesso protetto da login e regole che permettono a ciascun utente di vedere solo i propri dati. Hosting dell'app tramite Netlify.</AboutP>
-        <AboutP><b>Finalità:</b> fornire il servizio di gestione dell'inventario. Nessun dato viene venduto o condiviso con terzi per finalità di marketing.</AboutP>
-        <AboutP><b>Conservazione:</b> finché l'account resta attivo. Puoi richiedere la cancellazione dei tuoi dati in qualsiasi momento.</AboutP>
-        <AboutP><b>I tuoi diritti:</b> accesso, rettifica, cancellazione, portabilità e opposizione al trattamento dei tuoi dati, contattando {emailNode}.</AboutP>
-        <AboutP><b>Fornitori terzi coinvolti:</b> Supabase Inc. (database, autenticazione, storage) e Netlify (hosting).</AboutP>
+      <AboutSection icon={Scale} title={t("settings.privacyTitle")}>
+        <AboutP><b>{t("settings.privacyControllerLabel")}</b> {SUPPORT_EMAIL ? <>{t("settings.privacyControllerBodyPre")}{emailNode}{t("settings.privacyControllerBodyPost")}</> : t("settings.privacyControllerBodyNoEmail")}.</AboutP>
+        <AboutP><b>{t("settings.privacyDataLabel")}</b> {t("settings.privacyDataBody")}</AboutP>
+        <AboutP><b>{t("settings.privacyWhereLabel")}</b> {t("settings.privacyWhereBody")}</AboutP>
+        <AboutP><b>{t("settings.privacyPurposeLabel")}</b> {t("settings.privacyPurposeBody")}</AboutP>
+        <AboutP><b>{t("settings.privacyRetentionLabel")}</b> {t("settings.privacyRetentionBody")}</AboutP>
+        <AboutP><b>{t("settings.privacyRightsLabel")}</b> {t("settings.privacyRightsBodyPre")}{emailNode}.</AboutP>
+        <AboutP><b>{t("settings.privacyVendorsLabel")}</b> {t("settings.privacyVendorsBody")}</AboutP>
       </AboutSection>
 
-      <AboutSection icon={FileCheck} title="Termini di servizio">
-        <AboutP>Il servizio è fornito "così com'è", pensato per la gestione personale di un inventario di carte collezionabili.</AboutP>
-        <AboutP>Sei responsabile dell'accuratezza dei dati che inserisci (prezzi, quantità, stato delle vendite).</AboutP>
-        <AboutP>Eventuali funzionalità a pagamento saranno regolate da termini aggiuntivi comunicati al momento del lancio.</AboutP>
-        <AboutP>Il servizio non garantisce disponibilità continua e potrebbe essere soggetto a manutenzioni o interruzioni.</AboutP>
+      <AboutSection icon={FileCheck} title={t("settings.termsTitle")}>
+        <AboutP>{t("settings.terms1")}</AboutP>
+        <AboutP>{t("settings.terms2")}</AboutP>
+        <AboutP>{t("settings.terms3")}</AboutP>
+        <AboutP>{t("settings.terms4")}</AboutP>
       </AboutSection>
 
-      <AboutSection icon={Code2} title="Licenze open source">
-        <AboutP>Questa app è costruita con React, Vite, Tailwind CSS, lucide-react e Supabase JS, tutte rilasciate con licenze open source permissive (principalmente MIT).</AboutP>
+      <AboutSection icon={Code2} title={t("settings.licensesTitle")}>
+        <AboutP>{t("settings.licensesText")}</AboutP>
       </AboutSection>
 
-      <AboutSection icon={Mail} title="Contatti">
-        <AboutP>Per domande, richieste sui tuoi dati o segnalazioni: {emailNode}.</AboutP>
+      <AboutSection icon={Mail} title={t("settings.contactsTitle")}>
+        <AboutP>{t("settings.contactsPre")}{emailNode}.</AboutP>
       </AboutSection>
     </>
   );
@@ -397,17 +437,18 @@ function AboutP({ children }) {
 }
 
 function CSVPanel({ itemCount, onExportCSV }) {
+  const { t } = useLanguage();
   return (
     <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
       <div className="flex items-center gap-2 mb-2">
         <FileText size={16} color={C.gold} />
-        <span className="text-sm font-semibold">Esportazione CSV</span>
+        <span className="text-sm font-semibold">{t("settings.csvExport")}</span>
       </div>
       <p className="text-[12.5px] mb-3" style={{ color: C.textDim }}>
-        Un foglio con tutte le carte, i lotti e le vendite (incluse quote non assegnate e vendite di gruppo) — pensato per aprirlo in Excel/Fogli Google, non come backup.
+        {t("settings.csvExportDescription")}
       </p>
       <GhostButton full onClick={onExportCSV} disabled={itemCount === 0}>
-        <FileText size={14} /> Esporta CSV
+        <FileText size={14} /> {t("settings.exportCsvButton")}
       </GhostButton>
     </div>
   );

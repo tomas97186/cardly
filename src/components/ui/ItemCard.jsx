@@ -1,12 +1,14 @@
 import { Layers } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { euro, cardDisplayName } from "../../lib/format";
 import { Badge } from "./Badge";
 import { PhotoThumb } from "./Photo";
 
 export function ItemCard({ item, onClick }) {
   const { GAME_META } = useCatalog();
+  const { t } = useLanguage();
   if (item.kind === "lotto") {
     const meta = GAME_META[item.game] || GAME_META.altro;
     const soldCount = item.cards.filter((c) => c.status === "sold").length;
@@ -19,10 +21,10 @@ export function ItemCard({ item, onClick }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 mb-0.5">
               <Layers size={11} color={C.textFaint} />
-              <span className="text-[10.5px] uppercase tracking-wider" style={{ color: C.textFaint }}>Lotto</span>
+              <span className="text-[10.5px] uppercase tracking-wider" style={{ color: C.textFaint }}>{t("itemCard.lot")}</span>
             </div>
             <div className="text-[13.5px] font-medium leading-snug truncate">{item.lotName}</div>
-            <div className="text-[11.5px] mt-0.5" style={{ color: C.textDim }}>{item.cards.length} / {item.quantity} catalogate</div>
+            <div className="text-[11.5px] mt-0.5" style={{ color: C.textDim }}>{t("itemCard.catalogedCount", { done: item.cards.length, total: item.quantity })}</div>
             <div className="flex items-center justify-between mt-1.5">
               <Badge color={meta.color} bg={meta.bg}>{meta.label}</Badge>
               <span className="text-[13px] font-bold">{euro(item.totalCost)}</span>
@@ -31,8 +33,8 @@ export function ItemCard({ item, onClick }) {
         </div>
         {(soldCount > 0 || listedCount > 0) && (
           <div className="px-3 pb-2 -mt-1 flex gap-2">
-            {soldCount > 0 && <span className="text-[11px] font-semibold" style={{ color: C.teal }}>✓ {soldCount} vendute</span>}
-            {listedCount > 0 && <span className="text-[11px] font-semibold" style={{ color: C.info }}>{listedCount} in vendita</span>}
+            {soldCount > 0 && <span className="text-[11px] font-semibold" style={{ color: C.teal }}>{t("itemCard.soldCount", { count: soldCount })}</span>}
+            {listedCount > 0 && <span className="text-[11px] font-semibold" style={{ color: C.info }}>{t("itemCard.listedCount", { count: listedCount })}</span>}
           </div>
         )}
       </button>
@@ -52,20 +54,20 @@ export function ItemCard({ item, onClick }) {
               <Badge color={meta.color} bg={meta.bg}>{meta.label}</Badge>
               {/* {item.gradingCompany && <Badge color={C.info} bg="rgba(108,142,239,0.14)">{item.gradingCompany}{item.grade ? ` ${item.grade}` : ""}</Badge>} */}
             </div>
-            <span className="text-[13px] font-bold flex-shrink-0" style={{ color: item.unitCost != null ? C.text : C.amber }}>{item.unitCost != null ? euro(item.unitCost) : "costo n.d."}</span>
+            <span className="text-[13px] font-bold flex-shrink-0" style={{ color: item.unitCost != null ? C.text : C.amber }}>{item.unitCost != null ? euro(item.unitCost) : t("common.costNa")}</span>
           </div>
         </div>
       </div>
       {item.status === "sold" && (
         <div className="px-3 pb-2 -mt-1">
           <span className="text-[11px] font-semibold" style={{ color: C.teal }}>
-            ✓ Venduta {item.sale && item.sale.groupId ? "in blocco" : item.sale && item.unitCost != null ? `· ${euro(item.sale.price - item.unitCost)} margine` : item.sale ? "· costo n.d." : ""}
+            {item.sale && item.sale.groupId ? t("itemCard.soldBulk") : item.sale && item.unitCost != null ? t("itemCard.soldWithMargin", { margin: euro(item.sale.price - item.unitCost) }) : item.sale ? t("itemCard.soldCostNa") : t("itemCard.soldPlain")}
           </span>
         </div>
       )}
       {item.status === "listed" && item.listing && (
         <div className="px-3 pb-2 -mt-1">
-          <span className="text-[11px] font-semibold" style={{ color: C.info }}>In vendita · {euro(item.listing.price)}</span>
+          <span className="text-[11px] font-semibold" style={{ color: C.info }}>{t("itemCard.listedWithPrice", { price: euro(item.listing.price) })}</span>
         </div>
       )}
     </button>

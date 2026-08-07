@@ -1,6 +1,7 @@
 import { Edit2, Layers, Plus, ChevronRight } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { euro, fmtDate } from "../../lib/format";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
@@ -9,6 +10,7 @@ import { PhotoThumb, PhotoGallery } from "../ui/Photo";
 // ---------- Lot detail (container view) ----------
 export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
   const { GAME_META } = useCatalog();
+  const { t } = useLanguage();
   const meta = GAME_META[lot.game] || GAME_META.altro;
   const assigned = lot.cards.reduce((s, c) => s + (c.assignedCost || 0), 0);
   const unallocated = lot.totalCost - assigned;
@@ -17,7 +19,7 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
   const remaining = Math.max(0, lot.quantity - lot.cards.length);
 
   return (
-    <Modal title={lot.lotName} onClose={onClose} eyebrow="Lotto" wide>
+    <Modal title={lot.lotName} onClose={onClose} eyebrow={t("details.lotEyebrow")} wide>
       <div className="flex gap-4 mb-4">
         <PhotoThumb photoKey={lot.photoKeys?.[0]} photoKeys={lot.photoKeys} fileNamePrefix={lot.lotName} size={80} rounded="12px" iconSize={22} />
         <div className="flex-1 min-w-0">
@@ -32,15 +34,15 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
 
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="p-2.5 rounded-xl text-center" style={{ background: C.surfaceAlt }}>
-          <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>Totale</div>
+          <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.lotTotal")}</div>
           <div className="text-sm font-bold mt-0.5">{euro(lot.totalCost)}</div>
         </div>
         <div className="p-2.5 rounded-xl text-center" style={{ background: C.surfaceAlt }}>
-          <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>Catalogate</div>
+          <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.lotCataloged")}</div>
           <div className="text-sm font-bold mt-0.5">{lot.cards.length} / {lot.quantity}</div>
         </div>
         <div className="p-2.5 rounded-xl text-center" style={{ background: C.surfaceAlt }}>
-          <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>Non assegnato</div>
+          <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.lotUnallocated")}</div>
           <div className="text-sm font-bold mt-0.5" style={{ color: unallocated !== 0 ? C.amber : C.text }}>{euro(unallocated)}</div>
         </div>
       </div>
@@ -48,13 +50,13 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
       {lot.purchaseNotes && <p className="text-[13px] mb-4" style={{ color: C.textDim }}>{lot.purchaseNotes}</p>}
 
       <h4 className="text-[12px] uppercase tracking-widest mb-2" style={{ color: C.textFaint }}>
-        Carte nel lotto {soldCount > 0 && <span style={{ color: C.teal }}>· {soldCount} vendute</span>} {listedCount > 0 && <span style={{ color: C.info }}>· {listedCount} in vendita</span>}
+        {t("details.cardsInLot")} {soldCount > 0 && <span style={{ color: C.teal }}>· {t("details.soldCount", { count: soldCount })}</span>} {listedCount > 0 && <span style={{ color: C.info }}>· {t("details.listedCount", { count: listedCount })}</span>}
       </h4>
 
       {lot.cards.length === 0 ? (
         <div className="text-center py-8 rounded-xl mb-2" style={{ background: C.surfaceAlt, color: C.textFaint }}>
           <Layers size={20} className="mx-auto mb-1.5" />
-          <div className="text-[13px]">Nessuna carta catalogata ancora.</div>
+          <div className="text-[13px]">{t("details.noCardsCataloged")}</div>
         </div>
       ) : (
         <div className="space-y-2 mb-2">
@@ -66,18 +68,18 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
               <button key={card.id} onClick={() => onOpenCard(card)} className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left" style={{ background: C.surfaceAlt }}>
                 <PhotoThumb photoKey={card.photoKeys?.[0] || lot.photoKeys?.[0]} size={40} rounded="8px" iconSize={14} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-medium truncate">{card.name || "Carta senza nome"}</div>
+                  <div className="text-[13px] font-medium truncate">{card.name || t("common.unnamedCard")}</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <Badge color={cardMeta.color} bg={cardMeta.bg}>{cardMeta.label}</Badge>
                     {card.gradingCompany && <Badge color={C.info} bg="rgba(108,142,239,0.14)">{card.gradingCompany}{card.grade ? ` ${card.grade}` : ""}</Badge>}
                     <span className="text-[11px]" style={{ color: costKnown ? C.textFaint : C.amber }}>
-                      {costKnown ? euro(card.assignedCost) : "Costo n.d."}
+                      {costKnown ? euro(card.assignedCost) : t("details.costNa")}
                     </span>
                   </div>
                 </div>
                 <div className="text-right flex flex-col items-end gap-0.5">
                   <span className="text-[11px] font-semibold" style={{ color: card.status === "sold" ? C.teal : card.status === "listed" ? C.info : C.textDim }}>
-                    {card.status === "sold" ? (card.sale && card.sale.groupId ? "Venduta (blocco)" : "Venduta") : card.status === "listed" ? "In vendita" : "In stock"}
+                    {card.status === "sold" ? (card.sale && card.sale.groupId ? t("details.statusSoldGroupShort") : t("details.statusSoldShort")) : card.status === "listed" ? t("details.statusListedShort") : t("details.statusInStockShort")}
                   </span>
                   {card.status === "sold" && margin !== null && (
                     <span className="text-[11px]" style={{ color: margin >= 0 ? C.teal : C.crimson }}>{margin >= 0 ? "+" : ""}{euro(margin)}</span>
@@ -95,7 +97,7 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
 
       {remaining > 0 && (
         <button onClick={onAddCard} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-semibold" style={{ border: `1.5px dashed ${C.gold}`, color: C.gold, background: "rgba(217,174,76,0.08)" }}>
-          <Plus size={15} /> {remaining} carte ancora da catalogare
+          <Plus size={15} /> {t("details.remainingToCatalog", { count: remaining })}
         </button>
       )}
     </Modal>

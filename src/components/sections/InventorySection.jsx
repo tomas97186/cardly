@@ -1,5 +1,6 @@
 import { Search, Package } from "lucide-react";
 import { C, CATEGORY_OPTIONS } from "../../lib/theme";
+import { useLanguage } from "../../context/LanguageContext";
 import { TextInput } from "../ui/Inputs";
 import { FilterToggle } from "../ui/FilterToggle";
 import { SortSelect } from "../ui/SortSelect";
@@ -15,14 +16,15 @@ export function InventorySection({
   games,
   onOpenItem, onOpenLot,
 }) {
+  const { t } = useLanguage();
   return (
     <>
       <div className="relative mb-3">
         <Search size={15} style={{ position: "absolute", left: 12, top: 11 }} color={C.textFaint} />
-        <TextInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca carta, set, lotto..." style={{ paddingLeft: 34 }} />
+        <TextInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("inventory.searchPlaceholder")} style={{ paddingLeft: 34 }} />
       </div>
       <div className="flex items-center justify-between gap-2 mb-3">
-        <span className="text-[11.5px] flex-shrink-0" style={{ color: C.textFaint }}>{sortedFiltered.length} risultati</span>
+        <span className="text-[11.5px] flex-shrink-0" style={{ color: C.textFaint }}>{t("inventory.results", { count: sortedFiltered.length })}</span>
         <div className="flex items-center gap-2">
           <SortSelect value={sortInventory} onChange={setSortInventory} />
           <FilterToggle
@@ -37,18 +39,18 @@ export function InventorySection({
       </div>
       {showInventoryFilters && (
         <div className="anim-slide-up mb-2 p-3 rounded-xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-          <FilterChips options={[["all", "Tutti i giochi"], ...games.map((g) => [g.key, g.label])]} value={filterGame} onChange={setFilterGame} activeColor={C.gold} activeText="#181305" />
-          <FilterChips options={[["all", "Tutti i tipi"], ["singola", "Carte singole"], ["lotto", "Lotti"]]} value={filterKind} onChange={setFilterKind} activeColor={C.info} activeText="#0C1330" />
-          <FilterChips options={[["all", "Tutti gli stati"], ["in_stock", "In magazzino"], ["listed", "In vendita"], ["sold", "Vendute"]]} value={filterStatus} onChange={setFilterStatus} activeColor={C.teal} activeText="#0B231D" />
-          <FilterChips options={[["all", "Gradate e non"], ["graded", "Solo gradate"], ["notGraded", "Non gradate"]]} value={filterGraded} onChange={setFilterGraded} activeColor={C.amber} activeText="#241704" />
-          <FilterChips options={[["all", "Tutte le categorie"], ...CATEGORY_OPTIONS.map((c) => [c, c])]} value={filterCategory} onChange={setFilterCategory} activeColor={C.crimson} activeText="#fff" last />
+          <FilterChips options={[["all", t("inventory.filterAllGames")], ...games.map((g) => [g.key, g.label])]} value={filterGame} onChange={setFilterGame} activeColor={C.gold} activeText="#181305" />
+          <FilterChips options={[["all", t("inventory.filterAllKinds")], ["singola", t("inventory.filterSingleCards")], ["lotto", t("inventory.filterLots")]]} value={filterKind} onChange={setFilterKind} activeColor={C.info} activeText="#0C1330" />
+          <FilterChips options={[["all", t("inventory.filterAllStatuses")], ["in_stock", t("common.status.inStock")], ["listed", t("common.status.listed")], ["sold", t("common.status.sold")]]} value={filterStatus} onChange={setFilterStatus} activeColor={C.teal} activeText="#0B231D" />
+          <FilterChips options={[["all", t("inventory.filterGradedAll")], ["graded", t("inventory.filterGradedOnly")], ["notGraded", t("inventory.filterNotGraded")]]} value={filterGraded} onChange={setFilterGraded} activeColor={C.amber} activeText="#241704" />
+          <FilterChips options={[["all", t("inventory.filterAllCategories")], ...CATEGORY_OPTIONS.map((c) => [c, c])]} value={filterCategory} onChange={setFilterCategory} activeColor={C.crimson} activeText="#fff" last />
         </div>
       )}
 
       {sortedFiltered.length === 0 ? (
         <div className="text-center py-16 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.textFaint }}>
           <Package size={24} className="mx-auto mb-2" />
-          <div className="text-sm">{itemsCount === 0 ? "Il tuo inventario è vuoto. Aggiungi il primo acquisto!" : "Nessun risultato con questi filtri."}</div>
+          <div className="text-sm">{itemsCount === 0 ? t("inventory.emptyNoItems") : t("inventory.emptyNoResults")}</div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">

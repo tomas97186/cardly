@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Trash2, Check } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { loadPhotoValues } from "../../lib/storage";
 import { Field } from "../ui/Field";
 import { TextInput, TextArea } from "../ui/Inputs";
@@ -11,6 +12,7 @@ import { GhostButton, PrimaryButton } from "../ui/Buttons";
 // ---------- Edit lot (container) form ----------
 export function EditLotForm({ lot, onCancel, onSubmit, onDelete }) {
   const { GAME_META } = useCatalog();
+  const { t } = useLanguage();
   const [lotName, setLotName] = useState(lot.lotName);
   const [game, setGame] = useState(lot.game);
   const [totalCost, setTotalCost] = useState(String(lot.totalCost));
@@ -45,8 +47,8 @@ export function EditLotForm({ lot, onCancel, onSubmit, onDelete }) {
 
   return (
     <div>
-      <Field label="Nome lotto *"><TextInput value={lotName} onChange={(e) => setLotName(e.target.value)} /></Field>
-      <Field label="Gioco (prevalente)">
+      <Field label={t("forms.lotName")}><TextInput value={lotName} onChange={(e) => setLotName(e.target.value)} /></Field>
+      <Field label={t("common.gamePrevalent")}>
         <div className="flex gap-2">
           {Object.entries(GAME_META).map(([key, meta]) => (
             <button key={key} onClick={() => setGame(key)} className="flex-1 py-2 rounded-lg text-sm font-medium border"
@@ -57,20 +59,20 @@ export function EditLotForm({ lot, onCancel, onSubmit, onDelete }) {
         </div>
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Prezzo totale (€) *"><TextInput type="number" step="0.01" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} /></Field>
-        <Field label="Numero carte nel lotto *"><TextInput type="number" min={lot.cards.length || 1} value={quantity} onChange={(e) => setQuantity(e.target.value)} /></Field>
+        <Field label={t("forms.lotTotalPrice2")}><TextInput type="number" step="0.01" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} /></Field>
+        <Field label={t("forms.lotQuantity")}><TextInput type="number" min={lot.cards.length || 1} value={quantity} onChange={(e) => setQuantity(e.target.value)} /></Field>
       </div>
-      <Field label="Data acquisto"><TextInput type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} /></Field>
-      <Field label="Venditore / Fonte"><TextInput value={source} onChange={(e) => setSource(e.target.value)} /></Field>
-      <Field label="Note"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-      <Field label="Foto del lotto">
-        {photosLoaded ? <PhotoPicker value={photos} onChange={setPhotos} /> : <span className="text-[12px]" style={{ color: C.textFaint }}>Caricamento foto...</span>}
+      <Field label={t("common.purchaseDate")}><TextInput type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} /></Field>
+      <Field label={t("common.source")}><TextInput value={source} onChange={(e) => setSource(e.target.value)} /></Field>
+      <Field label={t("common.notes")}><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      <Field label={t("forms.photosLot")}>
+        {photosLoaded ? <PhotoPicker value={photos} onChange={setPhotos} /> : <span className="text-[12px]" style={{ color: C.textFaint }}>{t("common.loadingPhotos")}</span>}
       </Field>
       <div className="flex gap-3 mt-2">
-        <GhostButton onClick={onDelete} style={{ color: C.crimson, borderColor: C.crimsonDim }}><Trash2 size={14} /> Elimina lotto</GhostButton>
-        <PrimaryButton full disabled={!valid || saving} onClick={handleSubmit}>{saving ? "Salvataggio..." : <><Check size={16} /> Salva</>}</PrimaryButton>
+        <GhostButton onClick={onDelete} style={{ color: C.crimson, borderColor: C.crimsonDim }}><Trash2 size={14} /> {t("forms.deleteLot")}</GhostButton>
+        <PrimaryButton full disabled={!valid || saving} onClick={handleSubmit}>{saving ? t("common.saving") : <><Check size={16} /> {t("common.save")}</>}</PrimaryButton>
       </div>
-      <button onClick={onCancel} className="w-full text-center text-[13px] mt-3" style={{ color: C.textDim }}>Annulla</button>
+      <button onClick={onCancel} className="w-full text-center text-[13px] mt-3" style={{ color: C.textDim }}>{t("common.cancel")}</button>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search, X } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { euro, cardDisplayName } from "../../lib/format";
 import { Badge } from "../ui/Badge";
 import { PhotoThumb } from "../ui/Photo";
@@ -9,6 +10,7 @@ import { PhotoThumb } from "../ui/Photo";
 // ---------- Global search (across every card, lot and status) ----------
 export function GlobalSearchModal({ items, onClose, onOpenItem, onOpenLotCard, onOpenLot }) {
   const { GAME_META } = useCatalog();
+  const { t } = useLanguage();
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
 
@@ -21,18 +23,18 @@ export function GlobalSearchModal({ items, onClose, onOpenItem, onOpenLotCard, o
         }
       } else {
         if ((it.lotName || "").toLowerCase().includes(q)) {
-          results.push({ type: "lot", id: it.id, name: it.lotName, sub: `Lotto · ${it.cards.length}/${it.quantity} catalogate`, game: it.game, photoKey: it.photoKeys?.[0], status: null, price: it.totalCost });
+          results.push({ type: "lot", id: it.id, name: it.lotName, sub: t("search.lotSub", { cataloged: it.cards.length, total: it.quantity }), game: it.game, photoKey: it.photoKeys?.[0], status: null, price: it.totalCost });
         }
         for (const c of it.cards) {
           if ((c.name || "").toLowerCase().includes(q) || (c.setName || "").toLowerCase().includes(q) || (c.cardNumber || "").toLowerCase().includes(q)) {
-            results.push({ type: "lotCard", id: c.id, lotId: it.id, name: cardDisplayName(c.name || "Carta senza nome", c.cardNumber), sub: `Nel lotto · ${it.lotName}`, game: c.game || it.game, photoKey: c.photoKeys?.[0] || it.photoKeys?.[0], status: c.status, price: c.status === "sold" ? c.sale?.price : c.status === "listed" ? c.listing?.price : c.assignedCost });
+            results.push({ type: "lotCard", id: c.id, lotId: it.id, name: cardDisplayName(c.name || t("common.unnamedCard"), c.cardNumber), sub: t("search.inLot", { lotName: it.lotName }), game: c.game || it.game, photoKey: c.photoKeys?.[0] || it.photoKeys?.[0], status: c.status, price: c.status === "sold" ? c.sale?.price : c.status === "listed" ? c.listing?.price : c.assignedCost });
           }
         }
       }
     }
   }
 
-  const statusLabel = (s) => (s === "sold" ? "Venduta" : s === "listed" ? "In vendita" : s === null ? "Lotto" : "In magazzino");
+  const statusLabel = (s) => (s === "sold" ? t("common.status.soldOne") : s === "listed" ? t("common.status.listed") : s === null ? t("search.lotLabel") : t("common.status.inStock"));
   const statusColor = (s) => (s === "sold" ? C.teal : s === "listed" ? C.info : s === null ? C.slate : C.gold);
 
   return (
@@ -44,16 +46,16 @@ export function GlobalSearchModal({ items, onClose, onOpenItem, onOpenLotCard, o
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca in tutto l'inventario — anche carte vendute o in vendita..."
+            placeholder={t("search.placeholder")}
             style={{ background: "transparent", border: "none", outline: "none", color: C.text, fontSize: "14.5px", width: "100%" }}
           />
           <button onClick={onClose} style={{ color: C.textDim }}><X size={20} /></button>
         </div>
         <div className="flex-1 overflow-y-auto p-3">
           {!q ? (
-            <div className="text-center py-14 text-[13px]" style={{ color: C.textFaint }}>Scrivi per cercare tra tutte le carte, i lotti e le vendite.</div>
+            <div className="text-center py-14 text-[13px]" style={{ color: C.textFaint }}>{t("search.emptyPrompt")}</div>
           ) : results.length === 0 ? (
-            <div className="text-center py-14 text-[13px]" style={{ color: C.textFaint }}>Nessun risultato per "{query}".</div>
+            <div className="text-center py-14 text-[13px]" style={{ color: C.textFaint }}>{t("search.noResults", { query })}</div>
           ) : (
             <div className="space-y-2">
               {results.map((r) => {

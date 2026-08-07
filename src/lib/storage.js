@@ -44,6 +44,13 @@ async function legacySaveCatalogSettings(settings) {
   try { await window.storage.set("catalog-settings", JSON.stringify(settings), false); }
   catch (e) { console.error("Errore salvataggio impostazioni catalogo", e); }
 }
+async function legacyLoadLanguagePref() {
+  try { const res = await window.storage.get("ui-language", false); return res ? res.value : null; }
+  catch (e) { return null; }
+}
+async function legacySaveLanguagePref(lang) {
+  try { await window.storage.set("ui-language", lang, false); } catch (e) { /* ignore */ }
+}
 
 // ================= Supabase: row <-> app-shape mapping =================
 
@@ -329,6 +336,18 @@ async function supabaseSaveCatalogSettings(settings) {
   }
 }
 
+// ================= Supabase: language preference (stored on the user, no table needed) ==
+
+async function supabaseLoadLanguagePref() {
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.user_metadata?.language || null;
+  } catch (e) { return null; }
+}
+async function supabaseSaveLanguagePref(lang) {
+  try { await supabase.auth.updateUser({ data: { language: lang } }); } catch (e) { /* ignore */ }
+}
+
 // ================= Public API (dispatches to the active backend) =================
 
 export async function loadItemsFromStorage() {
@@ -351,6 +370,12 @@ export async function loadCatalogSettings() {
 }
 export async function saveCatalogSettings(settings) {
   return isSupabaseConfigured ? supabaseSaveCatalogSettings(settings) : legacySaveCatalogSettings(settings);
+}
+export async function loadLanguagePref() {
+  return isSupabaseConfigured ? supabaseLoadLanguagePref() : legacyLoadLanguagePref();
+}
+export async function saveLanguagePref(lang) {
+  return isSupabaseConfigured ? supabaseSaveLanguagePref(lang) : legacySaveLanguagePref(lang);
 }
 
 // ---------- Multi-photo helpers ----------

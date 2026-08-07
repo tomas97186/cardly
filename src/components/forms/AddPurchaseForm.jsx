@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { todayISO } from "../../lib/format";
 import { Field } from "../ui/Field";
 import { TextInput, Select, TextArea } from "../ui/Inputs";
@@ -12,6 +13,7 @@ import { GhostButton, PrimaryButton } from "../ui/Buttons";
 // ---------- Add Purchase Form (top-level: single card OR lot container) ----------
 export function AddPurchaseForm({ onCancel, onSubmit }) {
   const { games, GAME_META, gradingCompanies } = useCatalog();
+  const { t } = useLanguage();
   const [purchaseType, setPurchaseType] = useState("singola");
   const [game, setGame] = useState(games[0]?.key || "altro");
   const [name, setName] = useState("");
@@ -53,7 +55,7 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
   return (
     <div>
       <div className="flex gap-2 mb-5 p-1 rounded-xl" style={{ background: C.surfaceAlt }}>
-        {[["singola", "Carta singola"], ["lotto", "Lotto"]].map(([val, label]) => (
+        {[["singola", t("forms.singleCard")], ["lotto", t("forms.lot")]].map(([val, label]) => (
           <button key={val} onClick={() => setPurchaseType(val)} className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors"
             style={{ background: purchaseType === val ? C.gold : "transparent", color: purchaseType === val ? "#181305" : C.textDim }}>
             {label}
@@ -61,7 +63,7 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
         ))}
       </div>
 
-      <Field label="Gioco (prevalente)">
+      <Field label={t("common.gamePrevalent")}>
         <div className="flex gap-2">
           {Object.entries(GAME_META).map(([key, meta]) => (
             <button key={key} onClick={() => setGame(key)} className="flex-1 py-2 rounded-lg text-sm font-medium border"
@@ -74,51 +76,51 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
 
       {purchaseType === "singola" ? (
         <>
-          <Field label="Nome carta *">
-            <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Charizard ex 199/197" />
+          <Field label={t("forms.cardName")}>
+            <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t("forms.cardNamePlaceholder")} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Set / Espansione"><TextInput value={setName_} onChange={(e) => setSetName(e.target.value)} placeholder="Es. Obsidian Flames" /></Field>
-            <Field label="Numero carta"><TextInput value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder="Es. 125/165" /></Field>
+            <Field label={t("forms.setName")}><TextInput value={setName_} onChange={(e) => setSetName(e.target.value)} placeholder={t("forms.setNamePlaceholder")} /></Field>
+            <Field label={t("forms.cardNumber")}><TextInput value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} placeholder={t("forms.cardNumberPlaceholder")} /></Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Condizione">
+            <Field label={t("forms.condition")}>
               <Select value={condition} onChange={(e) => setCondition(e.target.value)}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select>
             </Field>
-            <Field label="Categoria">
+            <Field label={t("forms.category")}>
               <Select value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select>
             </Field>
           </div>
-          <Field label="Lingua">
+          <Field label={t("forms.cardLanguage")}>
             <Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select>
           </Field>
           <GradingFields graded={graded} setGraded={setGraded} gradingCompany={gradingCompany} setGradingCompany={setGradingCompany} grade={grade} setGrade={setGrade} />
         </>
       ) : (
         <>
-          <Field label="Nome lotto *">
-            <TextInput value={lotName} onChange={(e) => setLotName(e.target.value)} placeholder="Es. Lotto 5 carte rare eBay" />
+          <Field label={t("forms.lotName")}>
+            <TextInput value={lotName} onChange={(e) => setLotName(e.target.value)} placeholder={t("forms.lotNamePlaceholder")} />
           </Field>
-          <Field label="Numero di carte nel lotto *" hint="Serve a tenere traccia di quante ne mancano da catalogare.">
+          <Field label={t("forms.lotQuantity")} hint={t("forms.lotQuantityHint")}>
             <TextInput type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
           </Field>
         </>
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label={purchaseType === "singola" ? "Prezzo pagato (€) *" : "Prezzo totale lotto (€) *"}>
+        <Field label={purchaseType === "singola" ? t("forms.pricePaid") : t("forms.lotTotalPrice")}>
           <TextInput type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />
         </Field>
-        <Field label="Data acquisto"><TextInput type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} /></Field>
+        <Field label={t("common.purchaseDate")}><TextInput type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} /></Field>
       </div>
 
-      <Field label="Venditore / Fonte"><TextInput value={source} onChange={(e) => setSource(e.target.value)} placeholder="Es. Vinted, fiera, eBay, privato..." /></Field>
-      <Field label="Note"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Dettagli utili sull'acquisto..." /></Field>
-      <Field label={purchaseType === "singola" ? "Foto" : "Foto del lotto"}><PhotoPicker value={photos} onChange={setPhotos} /></Field>
+      <Field label={t("common.source")}><TextInput value={source} onChange={(e) => setSource(e.target.value)} placeholder={t("forms.sourcePlaceholder")} /></Field>
+      <Field label={t("common.notes")}><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("forms.purchaseNotesPlaceholder")} /></Field>
+      <Field label={purchaseType === "singola" ? t("common.photos") : t("forms.photosLot")}><PhotoPicker value={photos} onChange={setPhotos} /></Field>
 
       <div className="flex gap-3 mt-2">
-        <GhostButton full onClick={onCancel}>Annulla</GhostButton>
-        <PrimaryButton full disabled={!valid || saving} onClick={handleSubmit}>{saving ? "Salvataggio..." : <><Plus size={16} /> Aggiungi</>}</PrimaryButton>
+        <GhostButton full onClick={onCancel}>{t("common.cancel")}</GhostButton>
+        <PrimaryButton full disabled={!valid || saving} onClick={handleSubmit}>{saving ? t("common.saving") : <><Plus size={16} /> {t("forms.addButton")}</>}</PrimaryButton>
       </div>
     </div>
   );

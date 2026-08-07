@@ -1,9 +1,12 @@
 import { SlidersHorizontal, ChevronDown } from "lucide-react";
 import { C } from "../../lib/theme";
+import { useLanguage } from "../../context/LanguageContext";
 
 // Collapsible filter toggle: keeps filter/sort controls out of sight until requested,
 // with a badge showing how many are currently active.
-export function FilterToggle({ open, onToggle, activeCount, label = "Filtri" }) {
+export function FilterToggle({ open, onToggle, activeCount, label }) {
+  const { t } = useLanguage();
+  const resolvedLabel = label ?? t("common.filters");
   return (
     <button
       onClick={onToggle}
@@ -11,7 +14,7 @@ export function FilterToggle({ open, onToggle, activeCount, label = "Filtri" }) 
       style={{ background: activeCount > 0 ? C.gold : C.surfaceAlt, color: activeCount > 0 ? "#181305" : C.textDim }}
     >
       <SlidersHorizontal size={13} />
-      {label}
+      {resolvedLabel}
       {activeCount > 0 && (
         <span style={{ background: "#181305", color: C.gold, borderRadius: 999, fontSize: 10, fontWeight: 700, padding: "1px 6px", lineHeight: "14px" }}>{activeCount}</span>
       )}

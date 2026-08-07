@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Trash2, Check } from "lucide-react";
 import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { loadPhotoValues } from "../../lib/storage";
 import { Field } from "../ui/Field";
 import { TextInput, Select } from "../ui/Inputs";
@@ -12,6 +13,7 @@ import { GhostButton, PrimaryButton } from "../ui/Buttons";
 // ---------- Add / Edit a single card inside a lot (cost optional) ----------
 export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
   const { GAME_META, gradingCompanies } = useCatalog();
+  const { t } = useLanguage();
   const isEdit = !!initial;
   const [name, setName] = useState(initial ? initial.name : "");
   const [game, setGame] = useState(initial ? initial.game || lot.game : lot.game);
@@ -51,7 +53,7 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
 
   return (
     <div>
-      <Field label="Gioco">
+      <Field label={t("common.game")}>
         <div className="flex gap-2">
           {Object.entries(GAME_META).map(([key, meta]) => (
             <button key={key} onClick={() => setGame(key)} className="flex-1 py-2 rounded-lg text-sm font-medium border"
@@ -61,30 +63,30 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
           ))}
         </div>
       </Field>
-      <Field label="Nome carta" hint="Lascia vuoto se non l'hai ancora identificata.">
-        <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Nami OP01-004" />
+      <Field label={t("forms.cardName")} hint={t("forms.lotCardNameHint")}>
+        <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={t("forms.lotCardNamePlaceholder")} />
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Set / Espansione"><TextInput value={setName_} onChange={(e) => setSetName(e.target.value)} /></Field>
-        <Field label="Numero carta"><TextInput value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} /></Field>
+        <Field label={t("forms.setName")}><TextInput value={setName_} onChange={(e) => setSetName(e.target.value)} /></Field>
+        <Field label={t("forms.cardNumber")}><TextInput value={cardNumber} onChange={(e) => setCardNumber(e.target.value)} /></Field>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Condizione"><Select value={condition} onChange={(e) => setCondition(e.target.value)}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
-        <Field label="Categoria"><Select value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
+        <Field label={t("forms.condition")}><Select value={condition} onChange={(e) => setCondition(e.target.value)}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
+        <Field label={t("forms.category")}><Select value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
       </div>
-      <Field label="Lingua"><Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select></Field>
+      <Field label={t("forms.cardLanguage")}><Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select></Field>
       <GradingFields graded={graded} setGraded={setGraded} gradingCompany={gradingCompany} setGradingCompany={setGradingCompany} grade={grade} setGrade={setGrade} />
-      <Field label="Prezzo attribuito (€)" hint="Facoltativo. Lascialo vuoto se non conosci ancora il valore di questa carta dentro il lotto.">
-        <TextInput type="number" step="0.01" min="0" value={assignedCost} onChange={(e) => setAssignedCost(e.target.value)} placeholder="Non specificato" />
+      <Field label={t("forms.assignedCost")} hint={t("forms.assignedCostHint")}>
+        <TextInput type="number" step="0.01" min="0" value={assignedCost} onChange={(e) => setAssignedCost(e.target.value)} placeholder={t("common.notSpecified")} />
       </Field>
-      <Field label="Foto">
-        {photosLoaded ? <PhotoPicker value={photos} onChange={setPhotos} /> : <span className="text-[12px]" style={{ color: C.textFaint }}>Caricamento foto...</span>}
+      <Field label={t("common.photos")}>
+        {photosLoaded ? <PhotoPicker value={photos} onChange={setPhotos} /> : <span className="text-[12px]" style={{ color: C.textFaint }}>{t("common.loadingPhotos")}</span>}
       </Field>
       <div className="flex gap-3 mt-2">
-        {isEdit && <GhostButton onClick={onDelete} style={{ color: C.crimson, borderColor: C.crimsonDim }}><Trash2 size={14} /> Elimina</GhostButton>}
-        <PrimaryButton full disabled={saving} onClick={handleSubmit}>{saving ? "Salvataggio..." : <><Check size={16} /> {isEdit ? "Salva" : "Aggiungi carta"}</>}</PrimaryButton>
+        {isEdit && <GhostButton onClick={onDelete} style={{ color: C.crimson, borderColor: C.crimsonDim }}><Trash2 size={14} /> {t("common.delete")}</GhostButton>}
+        <PrimaryButton full disabled={saving} onClick={handleSubmit}>{saving ? t("common.saving") : <><Check size={16} /> {isEdit ? t("common.save") : t("forms.addCard")}</>}</PrimaryButton>
       </div>
-      <button onClick={onCancel} className="w-full text-center text-[13px] mt-3" style={{ color: C.textDim }}>Annulla</button>
+      <button onClick={onCancel} className="w-full text-center text-[13px] mt-3" style={{ color: C.textDim }}>{t("common.cancel")}</button>
     </div>
   );
 }

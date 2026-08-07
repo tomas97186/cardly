@@ -1,11 +1,12 @@
 // ---------- Period filter helpers ----------
+// Labels are translation keys (resolved via t()), not display text — see lib/i18n.
 export const PERIOD_OPTIONS = [
-  ["all", "Da sempre"],
-  ["month", "Questo mese"],
-  ["lastmonth", "Mese scorso"],
-  ["30d", "Ultimi 30 giorni"],
-  ["year", "Quest'anno"],
-  ["custom", "Personalizzato"],
+  ["all", "period.all"],
+  ["month", "period.month"],
+  ["lastmonth", "period.lastmonth"],
+  ["30d", "period.30d"],
+  ["year", "period.year"],
+  ["custom", "period.custom"],
 ];
 export function getPeriodRange(period, customFrom, customTo) {
   const now = new Date();

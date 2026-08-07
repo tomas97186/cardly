@@ -1,11 +1,12 @@
 // ---------- Sorting helpers ----------
+// Labels are translation keys (resolved via t()), not display text — see lib/i18n.
 export const SORT_OPTIONS = [
-  ["recent", "Più recenti"],
-  ["oldest", "Meno recenti"],
-  ["price_desc", "Prezzo: dal più alto"],
-  ["price_asc", "Prezzo: dal più basso"],
-  ["name_asc", "Nome: A-Z"],
-  ["name_z", "Nome: Z-A"],
+  ["recent", "sort.recent"],
+  ["oldest", "sort.oldest"],
+  ["price_desc", "sort.price_desc"],
+  ["price_asc", "sort.price_asc"],
+  ["name_asc", "sort.name_asc"],
+  ["name_z", "sort.name_z"],
 ];
 export function sortUnits(list, sortKey, { getDate, getPrice, getName }) {
   const arr = [...list];
