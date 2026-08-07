@@ -72,7 +72,7 @@ export function ListingsSection({
           <div className="text-sm">{rawListedUnitsCount === 0 ? "Nessuna carta in vendita al momento." : "Nessun risultato con questi filtri."}</div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
           {allListedUnits.map((u) => {
             const meta = GAME_META[u.game] || GAME_META.altro;
             return (

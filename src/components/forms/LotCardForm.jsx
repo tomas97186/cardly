@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Trash2, Check } from "lucide-react";
-import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS } from "../../lib/theme";
+import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { loadPhotoValues } from "../../lib/storage";
 import { Field } from "../ui/Field";
@@ -19,6 +19,7 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
   const [cardNumber, setCardNumber] = useState(initial ? initial.cardNumber || "" : "");
   const [condition, setCondition] = useState(initial ? initial.condition || "Da valutare" : "Da valutare");
   const [category, setCategory] = useState(initial ? initial.category || "Carta Singola" : "Carta Singola");
+  const [language, setLanguage] = useState(initial ? initial.language || LANGUAGE_OPTIONS[0] : LANGUAGE_OPTIONS[0]);
   const [graded, setGraded] = useState(!!(initial && initial.gradingCompany));
   const [gradingCompany, setGradingCompany] = useState((initial && initial.gradingCompany) || gradingCompanies[0] || "");
   const [grade, setGrade] = useState((initial && initial.grade) || "");
@@ -39,7 +40,7 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
     setSaving(true);
     try {
       await onSubmit({
-        name: name.trim(), game, setName: setName_, cardNumber, condition, category,
+        name: name.trim(), game, setName: setName_, cardNumber, condition, category, language,
         gradingCompany: graded ? gradingCompany : null, grade: graded ? grade.trim() : null,
         assignedCost: assignedCost.trim() === "" ? null : parseFloat(assignedCost), photos,
       });
@@ -71,6 +72,7 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
         <Field label="Condizione"><Select value={condition} onChange={(e) => setCondition(e.target.value)}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
         <Field label="Categoria"><Select value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
       </div>
+      <Field label="Lingua"><Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select></Field>
       <GradingFields graded={graded} setGraded={setGraded} gradingCompany={gradingCompany} setGradingCompany={setGradingCompany} grade={grade} setGrade={setGrade} />
       <Field label="Prezzo attribuito (€)" hint="Facoltativo. Lascialo vuoto se non conosci ancora il valore di questa carta dentro il lotto.">
         <TextInput type="number" step="0.01" min="0" value={assignedCost} onChange={(e) => setAssignedCost(e.target.value)} placeholder="Non specificato" />

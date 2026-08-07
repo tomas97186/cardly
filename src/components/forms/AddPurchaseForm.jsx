@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS } from "../../lib/theme";
+import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { todayISO } from "../../lib/format";
 import { Field } from "../ui/Field";
@@ -19,6 +19,7 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
   const [cardNumber, setCardNumber] = useState("");
   const [condition, setCondition] = useState("NM — Near Mint");
   const [category, setCategory] = useState("Carta Singola");
+  const [language, setLanguage] = useState(LANGUAGE_OPTIONS[0]);
   const [graded, setGraded] = useState(false);
   const [gradingCompany, setGradingCompany] = useState(gradingCompanies[0] || "");
   const [grade, setGrade] = useState("");
@@ -40,7 +41,7 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
     setSaving(true);
     try {
       await onSubmit({
-        purchaseType, game, name, setName: setName_, cardNumber, condition, category,
+        purchaseType, game, name, setName: setName_, cardNumber, condition, category, language,
         gradingCompany: graded ? gradingCompany : null, grade: graded ? grade.trim() : null,
         lotName, quantity, price, purchaseDate, source, notes, photos,
       });
@@ -88,6 +89,9 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
               <Select value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select>
             </Field>
           </div>
+          <Field label="Lingua">
+            <Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select>
+          </Field>
           <GradingFields graded={graded} setGraded={setGraded} gradingCompany={gradingCompany} setGradingCompany={setGradingCompany} grade={grade} setGrade={setGrade} />
         </>
       ) : (

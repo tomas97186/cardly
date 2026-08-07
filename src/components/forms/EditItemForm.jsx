@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Trash2, Check } from "lucide-react";
-import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS } from "../../lib/theme";
+import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { loadPhotoValues } from "../../lib/storage";
 import { Field } from "../ui/Field";
@@ -18,6 +18,7 @@ export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
   const [cardNumber, setCardNumber] = useState(item.cardNumber || "");
   const [condition, setCondition] = useState(item.condition);
   const [category, setCategory] = useState(item.category);
+  const [language, setLanguage] = useState(item.language || LANGUAGE_OPTIONS[0]);
   const [graded, setGraded] = useState(!!item.gradingCompany);
   const [gradingCompany, setGradingCompany] = useState(item.gradingCompany || gradingCompanies[0] || "");
   const [grade, setGrade] = useState(item.grade || "");
@@ -47,7 +48,7 @@ export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
     setSaving(true);
     try {
       await onSubmit({
-        game, name, setName: setName_, cardNumber, condition, category,
+        game, name, setName: setName_, cardNumber, condition, category, language,
         gradingCompany: graded ? gradingCompany : null, grade: graded ? grade.trim() : null,
         unitCost: unitCost.trim() === "" ? null : parseFloat(unitCost), purchaseDate, source, purchaseNotes: notes, photos,
       });
@@ -77,6 +78,7 @@ export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
         <Field label="Condizione"><Select value={condition} onChange={(e) => setCondition(e.target.value)}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
         <Field label="Categoria"><Select value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
       </div>
+      <Field label="Lingua"><Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select></Field>
       <GradingFields graded={graded} setGraded={setGraded} gradingCompany={gradingCompany} setGradingCompany={setGradingCompany} grade={grade} setGrade={setGrade} />
       <div className="grid grid-cols-2 gap-3">
         <Field label="Costo (€)" hint="Facoltativo, lascialo vuoto se non lo conosci."><TextInput type="number" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder="Non specificato" /></Field>

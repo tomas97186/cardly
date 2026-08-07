@@ -51,7 +51,7 @@ export function InventorySection({
           <div className="text-sm">{itemsCount === 0 ? "Il tuo inventario è vuoto. Aggiungi il primo acquisto!" : "Nessun risultato con questi filtri."}</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
           {sortedFiltered.map((it) => (
             <ItemCard key={it.id} item={it} onClick={() => (it.kind === "lotto" ? onOpenLot(it.id) : onOpenItem(it.id))} />
           ))}

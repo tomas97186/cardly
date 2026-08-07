@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 
 import { useAuth } from "./hooks/useAuth";
+import { useAndroidBackButton } from "./hooks/useAndroidBackButton";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { CatalogProvider, useCatalog } from "./context/CatalogContext";
 import { C } from "./lib/theme";
@@ -34,6 +35,14 @@ import { InventorySection } from "./components/sections/InventorySection";
 import { ListingsSection } from "./components/sections/ListingsSection";
 import { SalesSection } from "./components/sections/SalesSection";
 import { SettingsSection } from "./components/sections/SettingsSection";
+
+// Shared between the mobile bottom tab bar and the desktop sidebar nav.
+const NAV_ITEMS = [
+  ["dashboard", "Dashboard", LayoutGrid],
+  ["inventory", "Inventario", Package],
+  ["listings", "In vendita", Megaphone],
+  ["sales", "Vendite", ShoppingBag],
+];
 
 export default function App() {
   const auth = useAuth();
@@ -102,6 +111,43 @@ function AppInner({ auth }) {
   const [bulkSaleCount, setBulkSaleCount] = useState(0);
   const [detailGroupSaleId, setDetailGroupSaleId] = useState(null);
 
+  // Android back button: close whatever's on top (a modal/detail, or a nested
+  // edit/sell/listing layer within one) instead of exiting the installed PWA. Only
+  // falls through to a real exit once every layer below is already closed.
+  const navDepth =
+    (view !== "dashboard" ? 1 : 0) +
+    (showGlobalSearch ? 1 : 0) +
+    (showAdd ? 1 : 0) +
+    (detailItemId ? 1 : 0) +
+    (editItemId || sellItemId || listingItemId ? 1 : 0) +
+    (detailLotId ? 1 : 0) +
+    (editLotId || addCardLotId ? 1 : 0) +
+    (detailLotCard ? 1 : 0) +
+    (editLotCard || sellLotCard || listingLotCard ? 1 : 0) +
+    (showBulkSale ? 1 : 0) +
+    (detailGroupSaleId ? 1 : 0);
+
+  function closeTopBackLayer() {
+    if (editLotCard) return setEditLotCard(null);
+    if (sellLotCard) return setSellLotCard(null);
+    if (listingLotCard) return setListingLotCard(null);
+    if (detailLotCard) return setDetailLotCard(null);
+    if (editLotId) return setEditLotId(null);
+    if (addCardLotId) return setAddCardLotId(null);
+    if (detailLotId) return setDetailLotId(null);
+    if (editItemId) return setEditItemId(null);
+    if (sellItemId) return setSellItemId(null);
+    if (listingItemId) return setListingItemId(null);
+    if (detailItemId) return setDetailItemId(null);
+    if (detailGroupSaleId) return setDetailGroupSaleId(null);
+    if (showBulkSale) return setShowBulkSale(false);
+    if (showAdd) return setShowAdd(false);
+    if (showGlobalSearch) return setShowGlobalSearch(false);
+    if (view !== "dashboard") return setView("dashboard");
+  }
+
+  useAndroidBackButton(navDepth, closeTopBackLayer);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -129,7 +175,7 @@ function AppInner({ auth }) {
       const photoKeys = form.photos && form.photos.length ? await savePhotos(`photo:${id}`, form.photos) : [];
       newItem = {
         id, kind: "singola", game: form.game, name: form.name.trim(), setName: form.setName,
-        cardNumber: form.cardNumber, condition: form.condition, category: form.category,
+        cardNumber: form.cardNumber, condition: form.condition, category: form.category, language: form.language,
         gradingCompany: form.gradingCompany || null, grade: form.grade || null,
         unitCost: parseFloat(form.price) || 0, purchaseDate: form.purchaseDate, source: form.source,
         purchaseNotes: form.notes, photoKeys, status: "in_stock", sale: null, createdAt: Date.now(),
@@ -210,7 +256,7 @@ function AppInner({ auth }) {
     const card = {
       id: cardId, name: form.name || `Carta ${(items.find((i) => i.id === lotId)?.cards.length || 0) + 1}`,
       game: form.game, setName: form.setName, cardNumber: form.cardNumber, condition: form.condition,
-      category: form.category, gradingCompany: form.gradingCompany || null, grade: form.grade || null,
+      category: form.category, language: form.language, gradingCompany: form.gradingCompany || null, grade: form.grade || null,
       assignedCost: form.assignedCost, photoKeys, status: "in_stock", sale: null, createdAt: Date.now(),
     };
     const next = items.map((i) => (i.id === lotId ? { ...i, cards: [...i.cards, card] } : i));
@@ -277,7 +323,7 @@ function AppInner({ auth }) {
   async function handleBulkSell(refs, saleData) {
     const newItems = refs.filter((r) => r.kind === "new").map((r) => ({
       id: uid(), kind: "singola", game: r.game, name: r.name, setName: r.setName || "",
-      cardNumber: r.cardNumber || "", condition: r.condition, category: r.category,
+      cardNumber: r.cardNumber || "", condition: r.condition, category: r.category, language: r.language,
       gradingCompany: r.gradingCompany || null, grade: r.grade || null,
       unitCost: r.cost, purchaseDate: todayISO(), source: "", purchaseNotes: "",
       photoKeys: [], status: "in_stock", sale: null, createdAt: Date.now(),
@@ -501,7 +547,7 @@ function AppInner({ auth }) {
   }
 
   return (
-    <div style={{ background: C.bg, color: C.text, fontFamily: "'Inter', system-ui, sans-serif", position: "relative" }} className="app-shell w-full flex flex-col rounded-2xl overflow-hidden">
+    <div style={{ background: C.bg, color: C.text, fontFamily: "'Inter', system-ui, sans-serif", position: "relative" }} className="app-shell w-full flex flex-col lg:flex-row rounded-2xl overflow-hidden">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -529,7 +575,43 @@ function AppInner({ auth }) {
         }
       `}</style>
 
-      <div className="px-5 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
+      {/* ---- Desktop sidebar (hidden below the lg breakpoint, where the bottom tab bar takes over) ---- */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:flex-shrink-0" style={{ background: C.surface, borderRight: `1px solid ${C.border}` }}>
+        <div className="px-6 pt-6 pb-5">
+          <h1 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-xl font-semibold">
+            <span style={{ color: C.text }}>Card</span><span style={{ color: C.gold }}>ly</span>
+          </h1>
+        </div>
+        <nav className="flex-1 px-3 space-y-1">
+          {NAV_ITEMS.map(([val, label, Icon]) => (
+            <button
+              key={val} onClick={() => setView(val)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors"
+              style={{ background: view === val ? C.surfaceAlt : "transparent", color: view === val ? C.gold : C.textDim }}
+            >
+              <Icon size={18} /> {label}
+            </button>
+          ))}
+        </nav>
+        <div className="px-3 pb-6 space-y-1">
+          <button
+            onClick={() => setShowGlobalSearch(true)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium"
+            style={{ color: C.textDim }}
+          >
+            <Search size={18} /> Cerca
+          </button>
+          <button
+            onClick={() => setView("settings")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium"
+            style={{ background: view === "settings" ? C.surfaceAlt : "transparent", color: view === "settings" ? C.gold : C.textDim }}
+          >
+            <SettingsIcon size={18} /> Impostazioni
+          </button>
+        </div>
+      </aside>
+
+      <div className="lg:hidden px-5 pt-5 pb-4 flex items-center justify-between" style={{ borderBottom: `1px solid ${C.border}` }}>
         <div>
           {/* <div className="text-[11px] uppercase tracking-[0.2em]" style={{ color: C.gold }}>Gestione Collezione</div> */}
           <h1 style={{ fontFamily: "'Oswald', sans-serif" }} className="text-xl font-semibold -mt-0.5">
@@ -542,7 +624,8 @@ function AppInner({ auth }) {
         </div>
       </div>
 
-      <div key={loading ? "loading" : view} className="anim-fade-in flex-1 min-h-0 overflow-y-auto px-5 py-5 pb-24">
+      <div key={loading ? "loading" : view} className="anim-fade-in flex-1 min-w-0 min-h-0 overflow-y-auto px-5 py-5 pb-24 lg:px-10 lg:py-8 lg:pb-10">
+        <div className="lg:max-w-6xl lg:mx-auto">
         {loading ? (
           <div className="text-center py-16 text-sm" style={{ color: C.textFaint }}>Caricamento inventario...</div>
         ) : view === "dashboard" ? (
@@ -588,21 +671,22 @@ function AppInner({ auth }) {
         ) : (
           <SettingsSection auth={auth} catalog={catalog} itemCount={items.length} onExportCSV={handleExportCSV} />
         )}
+        </div>
       </div>
 
       {view === "inventory" && (
-        <button onClick={() => setShowAdd(true)} style={{ background: C.gold, color: "#181305", position: "absolute", right: 20, bottom: 84 }} className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
+        <button onClick={() => setShowAdd(true)} style={{ background: C.gold, color: "#181305" }} className="absolute right-5 bottom-[84px] lg:bottom-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
           <Plus size={24} />
         </button>
       )}
       {view === "sales" && (
-        <button onClick={() => { setBulkSaleCount(0); setShowBulkSale(true); }} title="Vendi carte" style={{ background: C.teal, color: "#0B231D", position: "absolute", right: 20, bottom: 84 }} className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
+        <button onClick={() => { setBulkSaleCount(0); setShowBulkSale(true); }} title="Vendi carte" style={{ background: C.teal, color: "#0B231D" }} className="absolute right-5 bottom-[84px] lg:bottom-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
           <Plus size={24} />
         </button>
       )}
 
-      <div className="flex items-center justify-around py-2.5 relative z-20" style={{ background: C.surface, borderTop: `1px solid ${C.border}` }}>
-        {[["dashboard", "Dashboard", LayoutGrid], ["inventory", "Inventario", Package], ["listings", "In vendita", Megaphone], ["sales", "Vendite", ShoppingBag]].map(([val, label, Icon]) => (
+      <div className="lg:hidden flex items-center justify-around py-2.5 relative z-20" style={{ background: C.surface, borderTop: `1px solid ${C.border}` }}>
+        {NAV_ITEMS.map(([val, label, Icon]) => (
           <button key={val} onClick={() => setView(val)} className="flex flex-col items-center gap-1 px-3 py-1" style={{ color: view === val ? C.gold : C.textFaint }}>
             <Icon size={19} /><span className="text-[10.5px] font-medium">{label}</span>
           </button>

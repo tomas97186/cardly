@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, X, Check, Plus, AlertCircle } from "lucide-react";
-import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS } from "../../lib/theme";
+import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { euro, uid, cardDisplayName } from "../../lib/format";
 import { Field } from "../ui/Field";
@@ -144,6 +144,7 @@ function NewCardForm({ onCancel, onAdd }) {
   const [cardNumber, setCardNumber] = useState("");
   const [condition, setCondition] = useState("Da valutare");
   const [category, setCategory] = useState("Carta Singola");
+  const [language, setLanguage] = useState(LANGUAGE_OPTIONS[0]);
   const [graded, setGraded] = useState(false);
   const [gradingCompany, setGradingCompany] = useState(gradingCompanies[0] || "");
   const [grade, setGrade] = useState("");
@@ -155,7 +156,7 @@ function NewCardForm({ onCancel, onAdd }) {
     if (!valid) return;
     onAdd({
       key: `new-${uid()}`, kind: "new", name: name.trim(), game, setName: setName_, cardNumber,
-      condition, category, gradingCompany: graded ? gradingCompany : null, grade: graded ? grade.trim() : null,
+      condition, category, language, gradingCompany: graded ? gradingCompany : null, grade: graded ? grade.trim() : null,
       cost: cost.trim() === "" ? null : parseFloat(cost),
       sub: "Nuova carta, verrà aggiunta all'inventario",
     });
@@ -184,6 +185,7 @@ function NewCardForm({ onCancel, onAdd }) {
         <Field label="Condizione"><Select value={condition} onChange={(e) => setCondition(e.target.value)}>{CONDITION_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
         <Field label="Categoria"><Select value={category} onChange={(e) => setCategory(e.target.value)}>{CATEGORY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</Select></Field>
       </div>
+      <Field label="Lingua"><Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select></Field>
       <GradingFields graded={graded} setGraded={setGraded} gradingCompany={gradingCompany} setGradingCompany={setGradingCompany} grade={grade} setGrade={setGrade} />
       <Field label="Costo di acquisto (€)" hint="Facoltativo. Lascialo vuoto se non lo conosci — il margine di questa vendita non verrà calcolato automaticamente.">
         <TextInput type="number" step="0.01" min="0" value={cost} onChange={(e) => setCost(e.target.value)} placeholder="Non specificato" />

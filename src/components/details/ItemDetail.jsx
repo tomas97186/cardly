@@ -1,11 +1,12 @@
-import { Edit2, RotateCcw, Megaphone, ShoppingBag, Tag, ExternalLink, ChevronRight } from "lucide-react";
+import { Edit2, RotateCcw, Megaphone, ShoppingBag, Tag, ExternalLink, ChevronRight, Search } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { euro, fmtDate } from "../../lib/format";
+import { ebaySearchUrl, cardmarketSearchUrl } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
 import { PhotoThumb, PhotoGallery } from "../ui/Photo";
-import { GhostButton, PrimaryButton } from "../ui/Buttons";
+import { GhostButton, GhostLinkButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Detail modal for a single top-level card ----------
 export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList, onEditListing, onUnlist, onOpenGroup }) {
@@ -27,7 +28,7 @@ export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList
             {item.gradingCompany && <Badge color={C.info} bg="rgba(108,142,239,0.14)">{item.gradingCompany}{item.grade ? ` ${item.grade}` : ""}</Badge>}
           </div>
           <h3 className="text-base font-semibold mt-1.5 leading-snug">{item.name}</h3>
-          <div className="text-[12.5px] mt-1" style={{ color: C.textDim }}>{item.setName && <>{item.setName} · </>}{item.condition}</div>
+          <div className="text-[12.5px] mt-1" style={{ color: C.textDim }}>{item.setName && <>{item.setName} · </>}{item.condition}{item.language && <> · {item.language}</>}</div>
         </div>
       </div>
       <PhotoGallery photoKeys={item.photoKeys} fileNamePrefix={photoNamePrefix} />
@@ -47,6 +48,11 @@ export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList
         <div className="flex justify-between"><span>Data acquisto</span><span style={{ color: C.text }}>{fmtDate(item.purchaseDate)}</span></div>
         {item.source && <div className="flex justify-between"><span>Fonte</span><span style={{ color: C.text }}>{item.source}</span></div>}
         {item.purchaseNotes && <div className="pt-1" style={{ color: C.text }}>{item.purchaseNotes}</div>}
+      </div>
+
+      <div className="flex gap-3 mb-4">
+        <GhostLinkButton full href={cardmarketSearchUrl(item.name, item.cardNumber, item.game)}><Search size={14} /> Cardmarket</GhostLinkButton>
+        <GhostLinkButton full href={ebaySearchUrl(item.name, item.cardNumber)}><Search size={14} /> eBay</GhostLinkButton>
       </div>
 
       {item.status === "listed" && item.listing && (

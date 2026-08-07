@@ -32,7 +32,7 @@ export function DashboardSection({
           <PeriodFilter period={period} setPeriod={setPeriod} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo} />
         </div>
       )}
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         <StatCard icon={Wallet} label={period === "all" ? "Investito totale" : "Investito nel periodo"} value={euro(totalInvested)} />
         <StatCard icon={Boxes} label="In magazzino ora" value={inStockCount} sub={euro(valueInStock) + " di valore stimato"} />
         <StatCard icon={DollarSign} label={period === "all" ? "Incassato totale" : "Incassato nel periodo"} value={euro(totalRevenue)} accent={C.teal} />
@@ -73,7 +73,7 @@ export function DashboardSection({
           <div className="text-sm">Nessuna vendita registrata</div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
           {recentSales.map((u) => {
             const m = u.cost != null ? u.sale.price - u.cost : null;
             return (

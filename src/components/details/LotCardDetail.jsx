@@ -1,11 +1,12 @@
-import { Edit2, RotateCcw, Megaphone, ShoppingBag, Tag, ExternalLink, ChevronRight } from "lucide-react";
+import { Edit2, RotateCcw, Megaphone, ShoppingBag, Tag, ExternalLink, ChevronRight, Search } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { euro, fmtDate } from "../../lib/format";
+import { ebaySearchUrl, cardmarketSearchUrl } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
 import { PhotoThumb, PhotoGallery } from "../ui/Photo";
-import { GhostButton, PrimaryButton } from "../ui/Buttons";
+import { GhostButton, GhostLinkButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Detail modal for a card that lives inside a lot ----------
 export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale, onList, onEditListing, onUnlist, onOpenGroup, onCancelGroupSale }) {
@@ -28,7 +29,7 @@ export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale
             <Badge color={meta.color} bg={meta.bg}>{meta.label}</Badge>
             {card.gradingCompany && <Badge color={C.info} bg="rgba(108,142,239,0.14)">{card.gradingCompany}{card.grade ? ` ${card.grade}` : ""}</Badge>}
           </div>
-          <div className="text-[12.5px] mt-1.5" style={{ color: C.textDim }}>{card.setName && <>{card.setName} · </>}{card.condition}</div>
+          <div className="text-[12.5px] mt-1.5" style={{ color: C.textDim }}>{card.setName && <>{card.setName} · </>}{card.condition}{card.language && <> · {card.language}</>}</div>
         </div>
       </div>
       <PhotoGallery photoKeys={photoKeys} fileNamePrefix={photoNamePrefix} />
@@ -41,6 +42,11 @@ export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale
           <div className="text-[11px] uppercase tracking-widest" style={{ color: C.textFaint }}>Stato</div>
           <div className="text-base font-bold mt-0.5" style={{ color: statusColor }}>{statusLabel}</div>
         </div>
+      </div>
+
+      <div className="flex gap-3 mb-4">
+        <GhostLinkButton full href={cardmarketSearchUrl(card.name, card.cardNumber, card.game || lot.game)}><Search size={14} /> Cardmarket</GhostLinkButton>
+        <GhostLinkButton full href={ebaySearchUrl(card.name, card.cardNumber)}><Search size={14} /> eBay</GhostLinkButton>
       </div>
 
       {card.status === "listed" && card.listing && (

@@ -25,6 +25,9 @@ export const CONDITION_OPTIONS = [
 export const CATEGORY_OPTIONS = [
   "Carta Singola", "Box / Display Sigillato", "Busta / Bustina", "Mazzo (Deck)", "Altro",
 ];
+export const LANGUAGE_OPTIONS = [
+  "Italiano", "Inglese", "Giapponese", "Coreano", "Cinese", "Altra lingua",
+];
 
 // I giochi gestiti e le piattaforme di vendita non sono più fissi: vivono in
 // lib/catalog.js come default e sono personalizzabili dall'utente (vedi CatalogContext).

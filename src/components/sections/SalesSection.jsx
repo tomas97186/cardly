@@ -19,7 +19,7 @@ export function SalesSection({
   const { GAME_META } = useCatalog();
   return (
     <>
-      <div className="grid grid-cols-3 gap-2 mb-2">
+      <div className="grid grid-cols-3 lg:max-w-md gap-2 mb-2">
         <div className="p-3 rounded-xl text-center" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
           <div className="text-[10.5px] uppercase" style={{ color: C.textFaint }}>Ricavi</div>
           <div className="text-sm font-bold mt-0.5">{euro(totalRevenue)}</div>
@@ -59,7 +59,7 @@ export function SalesSection({
           <div className="text-sm">Ancora nessuna vendita registrata.</div>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2">
           {sortedSoldUnits.map((u) => {
             const m = u.cost != null ? u.sale.price - u.cost : null;
             const meta = GAME_META[u.game] || GAME_META.altro;
