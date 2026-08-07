@@ -109,9 +109,9 @@ export function LoginScreen({ auth }) {
           </PrimaryButton>
         </form>
 
-        <GhostButton full style={{ marginTop: 10 }} disabled={!email.trim() || submitting} onClick={handleMagicLink}>
+        {/* <GhostButton full style={{ marginTop: 10 }} disabled={!email.trim() || submitting} onClick={handleMagicLink}>
           <Mail size={14} /> {t("auth.magicLink")}
-        </GhostButton>
+        </GhostButton> */}
 
         <button
           className="w-full text-center text-[13px] mt-5"
