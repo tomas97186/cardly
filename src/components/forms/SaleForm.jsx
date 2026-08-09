@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertCircle, Tag, ShoppingBag } from "lucide-react";
 import { C } from "../../lib/theme";
-import { euro, todayISO } from "../../lib/format";
+import { money, todayISO, currentCurrencySymbol } from "../../lib/format";
 import { useLanguage } from "../../context/LanguageContext";
 import { Field } from "../ui/Field";
 import { TextInput, TextArea } from "../ui/Inputs";
@@ -40,22 +40,22 @@ export function SaleForm({ item, onCancel, onSubmit }) {
         <div>
           <div className="text-sm font-medium">{item.name}</div>
           <div className="text-[12px]" style={{ color: costKnown ? C.textDim : C.amber }}>
-            {costKnown ? t("forms.costLabel", { cost: euro(item.unitCost) }) : t("forms.costUnspecified")}
+            {costKnown ? t("forms.costLabel", { cost: money(item.unitCost) }) : t("forms.costUnspecified")}
           </div>
         </div>
       </div>
 
       {item.listing && (
-        <div className="flex gap-2 items-start px-3 py-2.5 rounded-lg mb-4" style={{ background: "rgba(108,142,239,0.12)" }}>
+        <div className="flex gap-2 items-start px-3 py-2.5 rounded-lg mb-4" style={{ background: `${C.info}1F` }}>
           <Tag size={14} color={C.info} style={{ marginTop: 1, flexShrink: 0 }} />
           <span className="text-[12.5px]" style={{ color: C.info }}>
-            {t("forms.wasListedNotice", { platform: item.listing.platform || t("forms.aPlatform"), price: euro(item.listing.price) })}
+            {t("forms.wasListedNotice", { platform: item.listing.platform || t("forms.aPlatform"), price: money(item.listing.price) })}
           </span>
         </div>
       )}
 
       {!costKnown && (
-        <div className="flex gap-2 items-start px-3 py-2.5 rounded-lg mb-4" style={{ background: "rgba(201,138,58,0.12)" }}>
+        <div className="flex gap-2 items-start px-3 py-2.5 rounded-lg mb-4" style={{ background: `${C.amber}1F` }}>
           <AlertCircle size={15} color={C.amber} style={{ marginTop: 1, flexShrink: 0 }} />
           <span className="text-[12.5px]" style={{ color: C.amber }}>
             {t("forms.noCostNotice")}
@@ -64,7 +64,7 @@ export function SaleForm({ item, onCancel, onSubmit }) {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label={t("forms.salePrice")}><TextInput type="number" step="0.01" min="0" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="0.00" /></Field>
+        <Field label={t("forms.salePrice", { symbol: currentCurrencySymbol() })}><TextInput type="number" step="0.01" min="0" value={salePrice} onChange={(e) => setSalePrice(e.target.value)} placeholder="0.00" /></Field>
         <Field label={t("forms.saleDate")}><TextInput type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} /></Field>
       </div>
       <Field label={t("forms.buyerPlatform")}><TextInput value={buyer} onChange={(e) => setBuyer(e.target.value)} placeholder={t("forms.buyerPlatformPlaceholder")} /></Field>
@@ -80,9 +80,9 @@ export function SaleForm({ item, onCancel, onSubmit }) {
       <Field label={t("common.notes")}><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("forms.shippingNotesPlaceholder")} /></Field>
 
       {margin !== null && (
-        <div className="flex items-center justify-between px-3 py-2.5 rounded-lg mb-4" style={{ background: margin >= 0 ? "rgba(63,179,155,0.12)" : "rgba(204,91,76,0.12)" }}>
+        <div className="flex items-center justify-between px-3 py-2.5 rounded-lg mb-4" style={{ background: margin >= 0 ? `${C.teal}1F` : `${C.crimson}1F` }}>
           <span className="text-[13px]" style={{ color: C.textDim }}>{t("forms.marginOnSale")}</span>
-          <span className="text-sm font-bold" style={{ color: margin >= 0 ? C.teal : C.crimson }}>{margin >= 0 ? "+" : ""}{euro(margin)}</span>
+          <span className="text-sm font-bold" style={{ color: margin >= 0 ? C.teal : C.crimson }}>{margin >= 0 ? "+" : ""}{money(margin)}</span>
         </div>
       )}
 

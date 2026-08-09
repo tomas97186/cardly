@@ -6,22 +6,33 @@
 <title>Cardly</title>
 <meta name="description" content="Gestione inventario carte collezionabili Pokémon e One Piece" />
 <link rel="manifest" href="/manifest.json" />
-<meta name="theme-color" content="#12141C" />
+<meta name="theme-color" content="#15171B" />
 <link rel="icon" href="/icon-192.png" />
 <link rel="apple-touch-icon" href="/icon-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Cardly" />
 
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
 <style>
-  html, body { height: 100%; margin: 0; background: #12141C; overscroll-behavior: none; }
+  html, body { height: 100%; margin: 0; background: #15171B; overscroll-behavior: none; }
   body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
   #root { min-height: 100%; }
-  #boot-fallback { color: #8B90A3; font-family: system-ui, sans-serif; text-align: center; padding-top: 40vh; font-size: 14px; }
+  #boot-fallback { color: #888D97; font-family: system-ui, sans-serif; text-align: center; padding-top: 40vh; font-size: 14px; }
+  html[data-theme-mode="light"], html[data-theme-mode="light"] body { background: #EEF1F5; }
+  html[data-theme-mode="light"] #boot-fallback { color: #57607A; }
 </style>
+<script>
+  // Applied before first paint so a saved light-theme preference doesn't flash
+  // dark for a frame — ThemeContext reconciles the real (possibly account-synced)
+  // preference once React mounts, but this local cache is read synchronously.
+  (function () {
+    try {
+      if (localStorage.getItem("cardly-theme-mode") === "light") {
+        document.documentElement.setAttribute("data-theme-mode", "light");
+      }
+    } catch (e) {}
+  })();
+</script>
 </head>
 <body>
   <div id="root"><div id="boot-fallback">Caricamento di Cardly...</div></div>

@@ -1,17 +1,13 @@
 import { useState, useEffect } from "react";
-import { supabase, isSupabaseConfigured } from "../lib/supabaseClient";
+import { supabase } from "../lib/supabaseClient";
 
-// Manages the Supabase Auth session for the PWA build. In the Claude Artifact build
-// there's no Supabase config at all (no VITE_* env vars under esbuild), so this
-// short-circuits to a stub "signed-in" state — the artifact platform provides its
-// own storage and has no login concept, so nothing downstream should ever gate on it.
+// Manages the Supabase Auth session.
 export function useAuth() {
-  const [status, setStatus] = useState(isSupabaseConfigured ? "checking" : "signed-in"); // checking | signed-out | signed-in | error
+  const [status, setStatus] = useState("checking"); // checking | signed-out | signed-in | error
   const [user, setUser] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
     let cancelled = false;
 
     supabase.auth.getSession().then(({ data, error }) => {
@@ -65,7 +61,6 @@ export function useAuth() {
   }
 
   async function signOut() {
-    if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
   }
 
@@ -78,5 +73,5 @@ export function useAuth() {
     }
   }
 
-  return { configured: isSupabaseConfigured, status, user, errorMsg, signInWithPassword, signUpWithPassword, signInWithOtp, signOut, updatePassword };
+  return { status, user, errorMsg, signInWithPassword, signUpWithPassword, signInWithOtp, signOut, updatePassword };
 }

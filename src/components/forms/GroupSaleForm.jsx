@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AlertCircle, ShoppingBag } from "lucide-react";
 import { C } from "../../lib/theme";
-import { euro, todayISO } from "../../lib/format";
+import { money, todayISO, currentCurrencySymbol } from "../../lib/format";
 import { useLanguage } from "../../context/LanguageContext";
 import { Field } from "../ui/Field";
 import { TextInput, TextArea } from "../ui/Inputs";
@@ -42,14 +42,14 @@ export function GroupSaleForm({ cards, onCancel, onSubmit, onBack }) {
             <div key={c.key || c.id} className="flex items-center justify-between text-[13px] gap-2">
               <span className="truncate">{c.name || t("common.unnamedCard")}</span>
               {c.sub && <span className="truncate text-[11px] flex-shrink-0" style={{ color: C.textFaint }}>{c.sub}</span>}
-              <span className="flex-shrink-0" style={{ color: c.cost != null ? C.textDim : C.amber }}>{c.cost != null ? euro(c.cost) : t("common.costNa")}</span>
+              <span className="flex-shrink-0" style={{ color: c.cost != null ? C.textDim : C.amber }}>{c.cost != null ? money(c.cost) : t("common.costNa")}</span>
             </div>
           ))}
         </div>
       </div>
 
       {!allCostsKnown && (
-        <div className="flex gap-2 items-start px-3 py-2.5 rounded-lg mb-4" style={{ background: "rgba(201,138,58,0.12)" }}>
+        <div className="flex gap-2 items-start px-3 py-2.5 rounded-lg mb-4" style={{ background: `${C.amber}1F` }}>
           <AlertCircle size={15} color={C.amber} style={{ marginTop: 1, flexShrink: 0 }} />
           <span className="text-[12.5px]" style={{ color: C.amber }}>
             {t("forms.someCostsMissingNotice")}
@@ -57,7 +57,7 @@ export function GroupSaleForm({ cards, onCancel, onSubmit, onBack }) {
         </div>
       )}
 
-      <Field label={t("forms.totalSalePrice")} hint={t("forms.totalSalePriceHint")}>
+      <Field label={t("forms.totalSalePrice", { symbol: currentCurrencySymbol() })} hint={t("forms.totalSalePriceHint")}>
         <TextInput type="number" step="0.01" min="0" value={totalPrice} onChange={(e) => setTotalPrice(e.target.value)} placeholder="0.00" />
       </Field>
       <Field label={t("forms.saleDate")}><TextInput type="date" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} /></Field>
@@ -74,9 +74,9 @@ export function GroupSaleForm({ cards, onCancel, onSubmit, onBack }) {
       <Field label={t("common.notes")}><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("forms.shippingNotesPlaceholder")} /></Field>
 
       {margin !== null && (
-        <div className="flex items-center justify-between px-3 py-2.5 rounded-lg mb-4" style={{ background: margin >= 0 ? "rgba(63,179,155,0.12)" : "rgba(204,91,76,0.12)" }}>
+        <div className="flex items-center justify-between px-3 py-2.5 rounded-lg mb-4" style={{ background: margin >= 0 ? `${C.teal}1F` : `${C.crimson}1F` }}>
           <span className="text-[13px]" style={{ color: C.textDim }}>{t("forms.totalMarginOnSale")}</span>
-          <span className="text-sm font-bold" style={{ color: margin >= 0 ? C.teal : C.crimson }}>{margin >= 0 ? "+" : ""}{euro(margin)}</span>
+          <span className="text-sm font-bold" style={{ color: margin >= 0 ? C.teal : C.crimson }}>{margin >= 0 ? "+" : ""}{money(margin)}</span>
         </div>
       )}
 

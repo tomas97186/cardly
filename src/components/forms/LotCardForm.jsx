@@ -4,6 +4,7 @@ import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { loadPhotoValues } from "../../lib/storage";
+import { currentCurrencySymbol } from "../../lib/format";
 import { Field } from "../ui/Field";
 import { TextInput, Select } from "../ui/Inputs";
 import { PhotoPicker } from "../ui/Photo";
@@ -71,7 +72,7 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
       </div>
       <Field label={t("forms.cardLanguage")}><Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select></Field>
       <GradingFields graded={graded} setGraded={setGraded} gradingCompany={gradingCompany} setGradingCompany={setGradingCompany} grade={grade} setGrade={setGrade} />
-      <Field label={t("forms.assignedCost")} hint={t("forms.assignedCostHint")}>
+      <Field label={t("forms.assignedCost", { symbol: currentCurrencySymbol() })} hint={t("forms.assignedCostHint")}>
         <TextInput type="number" step="0.01" min="0" value={assignedCost} onChange={(e) => setAssignedCost(e.target.value)} placeholder={t("common.notSpecified")} />
       </Field>
       <Field label={t("common.photos")}>

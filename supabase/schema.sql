@@ -62,7 +62,7 @@ create table public.items (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
   game text not null, name text not null, set_name text, card_number text,
-  condition text, category text, grading_company text, grade text,
+  condition text, category text, language text, grading_company text, grade text,
   unit_cost numeric(10,2), purchase_date date, source text, purchase_notes text,
   photo_paths text[] not null default '{}',
   status text not null default 'in_stock' check (status in ('in_stock', 'listed', 'sold')),
@@ -81,7 +81,7 @@ create table public.lot_cards (
   lot_id text not null references public.lots(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
   name text, game text, set_name text, card_number text, condition text, category text,
-  grading_company text, grade text, assigned_cost numeric(10,2),
+  language text, grading_company text, grade text, assigned_cost numeric(10,2),
   photo_paths text[] not null default '{}',
   status text not null default 'in_stock' check (status in ('in_stock', 'listed', 'sold')),
   sale_id text references public.sales(id) on delete set null,
@@ -137,3 +137,9 @@ create policy "photos_update_own" on storage.objects for update
   using (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "photos_delete_own" on storage.objects for delete
   using (bucket_id = 'photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- Dopo questo file: esegui anche pagination.sql ----------
+-- Aggiunge gli indici e le query (search_inventory, search_global, v_listed_units)
+-- che l'app usa per paginare/filtrare/cercare senza caricare l'intero inventario ad
+-- ogni avvio. Tenuto in un file separato (invece che duplicato qui) per avere
+-- un'unica fonte di verità; è idempotente, quindi rieseguibile in sicurezza.

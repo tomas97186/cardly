@@ -2,7 +2,7 @@ import { Edit2, RotateCcw, Megaphone, ShoppingBag, Tag, ExternalLink, ChevronRig
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { euro, fmtDate } from "../../lib/format";
+import { money, fmtDate } from "../../lib/format";
 import { ebaySearchUrl, cardmarketSearchUrl } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
@@ -27,7 +27,7 @@ export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 flex-wrap">
             <Badge color={meta.color} bg={meta.bg}>{meta.label}</Badge>
-            {item.gradingCompany && <Badge color={C.info} bg="rgba(108,142,239,0.14)">{item.gradingCompany}{item.grade ? ` ${item.grade}` : ""}</Badge>}
+            {item.gradingCompany && <Badge color={C.info} bg={`${C.info}24`}>{item.gradingCompany}{item.grade ? ` ${item.grade}` : ""}</Badge>}
           </div>
           <h3 className="text-base font-semibold mt-1.5 leading-snug">{item.name}</h3>
           <div className="text-[12.5px] mt-1" style={{ color: C.textDim }}>{item.setName && <>{item.setName} · </>}{item.condition}{item.language && <> · {item.language}</>}</div>
@@ -37,7 +37,7 @@ export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
           <div className="text-[11px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.cost")}</div>
-          <div className="text-base font-bold mt-0.5" style={{ color: costKnown ? C.text : C.amber }}>{costKnown ? euro(item.unitCost) : t("common.notSpecified")}</div>
+          <div className="text-base font-bold mt-0.5" style={{ color: costKnown ? C.text : C.amber }}>{costKnown ? money(item.unitCost) : t("common.notSpecified")}</div>
         </div>
         <div className="p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
           <div className="text-[11px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.status")}</div>
@@ -58,12 +58,12 @@ export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList
       </div>
 
       {item.status === "listed" && item.listing && (
-        <div className="p-3 rounded-xl mb-4" style={{ background: "rgba(108,142,239,0.1)", border: `1px solid ${C.infoDim}` }}>
+        <div className="p-3 rounded-xl mb-4" style={{ background: `${C.info}1A`, border: `1px solid ${C.infoDim}` }}>
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] uppercase tracking-widest" style={{ color: C.info }}>{t("details.listedEyebrow")}</span>
             <button onClick={onEditListing} style={{ color: C.info }}><Edit2 size={13} /></button>
           </div>
-          <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.askingPrice")}</span><span className="font-semibold">{euro(item.listing.price)}</span></div>
+          <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.askingPrice")}</span><span className="font-semibold">{money(item.listing.price)}</span></div>
           {item.listing.platform && <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.platform")}</span><span>{item.listing.platform}</span></div>}
           <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.listedOn")}</span><span>{fmtDate(item.listing.listedDate)}</span></div>
           {item.listing.link && (
@@ -75,22 +75,22 @@ export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList
       )}
 
       {item.status === "sold" && item.sale && isGroupSale && (
-        <button onClick={onOpenGroup} className="w-full text-left p-3 rounded-xl mb-4" style={{ background: "rgba(63,179,155,0.1)", border: `1px solid ${C.tealDim}` }}>
+        <button onClick={onOpenGroup} className="w-full text-left p-3 rounded-xl mb-4" style={{ background: `${C.teal}1A`, border: `1px solid ${C.tealDim}` }}>
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] uppercase tracking-widest" style={{ color: C.teal }}>{t("details.soldInBulk")}</span>
             <ChevronRight size={14} color={C.teal} />
           </div>
           <div className="text-[13.5px]" style={{ color: C.text }}>
-            {t(item.sale.groupSize - 1 === 1 ? "details.groupedWithOne" : "details.groupedWithMany", { count: item.sale.groupSize - 1, total: euro(item.sale.groupTotal), date: fmtDate(item.sale.date) })}
+            {t(item.sale.groupSize - 1 === 1 ? "details.groupedWithOne" : "details.groupedWithMany", { count: item.sale.groupSize - 1, total: money(item.sale.groupTotal), date: fmtDate(item.sale.date) })}
           </div>
           <div className="text-[12px] mt-1" style={{ color: C.textDim }}>{t("details.tapForGroupDetail")}</div>
         </button>
       )}
 
       {item.status === "sold" && item.sale && !isGroupSale && (
-        <div className="p-3 rounded-xl mb-4" style={{ background: "rgba(63,179,155,0.1)", border: `1px solid ${C.tealDim}` }}>
+        <div className="p-3 rounded-xl mb-4" style={{ background: `${C.teal}1A`, border: `1px solid ${C.tealDim}` }}>
           <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.soldOn")}</span><span>{fmtDate(item.sale.date)}</span></div>
-          <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.price")}</span><span>{euro(item.sale.price)}</span></div>
+          <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.price")}</span><span>{money(item.sale.price)}</span></div>
           {item.sale.buyer && <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.buyer")}</span><span>{item.sale.buyer}</span></div>}
           {(item.sale.carrier || item.sale.tracking) && (
             <div className="flex justify-between text-[13.5px] mb-1">
@@ -101,7 +101,7 @@ export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList
           <div className="flex justify-between text-[13.5px] font-bold pt-1 mt-1" style={{ borderTop: `1px solid ${C.tealDim}` }}>
             <span>{t("details.margin")}</span>
             <span style={{ color: margin === null ? C.amber : margin >= 0 ? C.teal : C.crimson }}>
-              {margin === null ? t("details.costUnknown") : `${margin >= 0 ? "+" : ""}${euro(margin)}`}
+              {margin === null ? t("details.costUnknown") : `${margin >= 0 ? "+" : ""}${money(margin)}`}
             </span>
           </div>
         </div>

@@ -6,16 +6,26 @@ import {
 
 import { useAuth } from "./hooks/useAuth";
 import { useAndroidBackButton } from "./hooks/useAndroidBackButton";
+import { useAsyncRecord, useAsyncLotCard } from "./hooks/useAsyncRecord";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { CatalogProvider, useCatalog } from "./context/CatalogContext";
 import { LanguageProvider, useLanguage } from "./context/LanguageContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { CurrencyProvider } from "./context/CurrencyContext";
 import { C } from "./lib/theme";
 import { uid, todayISO, cardDisplayName } from "./lib/format";
 import { getPeriodRange, makeInRange } from "./lib/period";
-import { sortUnits } from "./lib/sort";
 import { buildAllSaleUnits } from "./lib/saleUnits";
-import { loadItemsFromStorage, persistItems, savePhotos, deletePhotoKeys } from "./lib/storage";
-import { migrateItems } from "./lib/migrations";
+import {
+  loadFinancialSummary, loadRecentSales, loadItemById, loadLotWithCards, loadGroupSaleDetail,
+  savePhotos, deletePhotoKeys,
+  upsertItem, upsertLot, upsertLotCard,
+  sellItemRecord, cancelItemSaleRecord, listItemRecord, unlistItemRecord,
+  sellLotCardRecord, cancelLotCardSaleRecord, listLotCardRecord, unlistLotCardRecord,
+  cancelGroupSaleRecord, upsertSaleRecord, updateItemFields, updateLotCardFields,
+  deleteItemRecord, deleteLotRecord, deleteLotCardRecord,
+  exportInventoryFull, loadListingsForExport,
+} from "./lib/storage";
 import { exportInventoryCSV } from "./lib/csv";
 
 import { Modal } from "./components/ui/Modal";
@@ -53,9 +63,13 @@ const NAV_ITEMS = [
 
 export default function App() {
   return (
-    <LanguageProvider>
-      <AppGate />
-    </LanguageProvider>
+    <ThemeProvider>
+      <CurrencyProvider>
+        <LanguageProvider>
+          <AppGate />
+        </LanguageProvider>
+      </CurrencyProvider>
+    </ThemeProvider>
   );
 }
 
@@ -84,31 +98,21 @@ function AppInner({ auth }) {
   const catalog = useCatalog();
   const { t } = useLanguage();
 
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [view, setView] = useState("dashboard");
-  const [search, setSearch] = useState("");
-  const [filterGame, setFilterGame] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterKind, setFilterKind] = useState("all"); // all | singola | lotto
-  const [filterGraded, setFilterGraded] = useState("all"); // all | graded | notGraded
-  const [filterCategory, setFilterCategory] = useState("all");
-  const [sortInventory, setSortInventory] = useState("recent");
+  // Bumped after every write — every fetch effect (financial summary, recent sales,
+  // the per-id detail loaders below, and each section's own paginated fetch) depends
+  // on this, so a mutation anywhere refreshes whatever's currently visible without
+  // needing per-case optimistic patching of a shared array.
+  const [dataVersion, setDataVersion] = useState(0);
+  const bumpDataVersion = useCallback(() => setDataVersion((v) => v + 1), []);
+
+  // Shared across Dashboard/Vendite/Report — changing the period in one changes it
+  // in all three, same as before.
   const [period, setPeriod] = useState("all");
   const [customFrom, setCustomFrom] = useState(todayISO());
   const [customTo, setCustomTo] = useState(todayISO());
-  const [sortSales, setSortSales] = useState("recent");
-  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
-  const [showInventoryFilters, setShowInventoryFilters] = useState(false);
-  const [showListingFilters, setShowListingFilters] = useState(false);
-  const [showSalesFilters, setShowSalesFilters] = useState(false);
-  const [showDashboardFilters, setShowDashboardFilters] = useState(false);
-  const [showReportFilters, setShowReportFilters] = useState(false);
 
-  const [listingPlatformFilter, setListingPlatformFilter] = useState("all");
-  const [listingPriceMin, setListingPriceMin] = useState("");
-  const [listingPriceMax, setListingPriceMax] = useState("");
-  const [sortListings, setSortListings] = useState("recent");
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
   const [showAdd, setShowAdd] = useState(false);
   const [detailItemId, setDetailItemId] = useState(null); // singola
@@ -128,6 +132,7 @@ function AppInner({ auth }) {
   const [bulkSaleCount, setBulkSaleCount] = useState(0);
   const [detailGroupSaleId, setDetailGroupSaleId] = useState(null);
   const [showExportPdf, setShowExportPdf] = useState(false);
+  const [exportListings, setExportListings] = useState(null);
 
   // Android back button: close whatever's on top (a modal/detail, or a nested
   // edit/sell/listing layer within one) instead of exiting the installed PWA. Only
@@ -168,199 +173,207 @@ function AppInner({ auth }) {
 
   useAndroidBackButton(navDepth, closeTopBackLayer);
 
+  // ---- financial summary (Dashboard / Report / Vendite header stats) ----
+  const [financialSummary, setFinancialSummary] = useState({ singolaItems: [], lotItems: [] });
+  const [recentSales, setRecentSales] = useState([]);
+  const [summaryLoading, setSummaryLoading] = useState(true);
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setLoading(true);
-      const raw = await loadItemsFromStorage();
+      setSummaryLoading(true);
+      const [summary, recent] = await Promise.all([loadFinancialSummary(), loadRecentSales(5)]);
       if (cancelled) return;
-      const data = migrateItems(raw);
-      setItems(data);
-      setLoading(false);
-      if (JSON.stringify(raw) !== JSON.stringify(data)) persistItems(data);
+      setFinancialSummary(summary);
+      setRecentSales(recent);
+      setSummaryLoading(false);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [dataVersion]);
 
-  const persist = useCallback(async (next) => {
-    await persistItems(next);
-    setItems(next);
-  }, []);
+  // ---- detail-by-id loaders (replace the old items.find(...) lookups) ----
+  const detailItem = useAsyncRecord(detailItemId, loadItemById, dataVersion);
+  const editItem = useAsyncRecord(editItemId, loadItemById, dataVersion);
+  const sellItem = useAsyncRecord(sellItemId, loadItemById, dataVersion);
+  const listingItem = useAsyncRecord(listingItemId, loadItemById, dataVersion);
+  const detailLot = useAsyncRecord(detailLotId, loadLotWithCards, dataVersion);
+  const editLot = useAsyncRecord(editLotId, loadLotWithCards, dataVersion);
+  const addCardLot = useAsyncRecord(addCardLotId, loadLotWithCards, dataVersion);
+  const detailLotCardResolved = useAsyncLotCard(detailLotCard, dataVersion);
+  const editLotCardResolved = useAsyncLotCard(editLotCard, dataVersion);
+  const sellLotCardResolved = useAsyncLotCard(sellLotCard, dataVersion);
+  const listingLotCardResolved = useAsyncLotCard(listingLotCard, dataVersion);
+  const detailGroupSaleRaw = useAsyncRecord(detailGroupSaleId, loadGroupSaleDetail, dataVersion);
+  // loadGroupSaleDetail returns bare data (no i18n/formatting) — display name and
+  // source label are assembled here, where t()/cardDisplayName are available.
+  const detailGroupSaleResolved = detailGroupSaleRaw ? {
+    ...detailGroupSaleRaw,
+    members: detailGroupSaleRaw.members.map((m) => ({
+      ...m,
+      name: cardDisplayName(m.name || t("common.unnamedCard"), m.cardNumber),
+      sourceLabel: m.kind === "singola" ? t("forms.singleCard") : t("details.groupSaleSourceLabel", { lotName: m.lotName }),
+    })),
+  } : null;
+
+  useEffect(() => {
+    if (!showExportPdf) { setExportListings(null); return; }
+    loadListingsForExport().then(setExportListings);
+  }, [showExportPdf]);
 
   // ---- singola item handlers ----
   async function handleAddPurchase(form) {
-    let newItem;
     if (form.purchaseType === "singola") {
       const id = uid();
       const photoKeys = form.photos && form.photos.length ? await savePhotos(`photo:${id}`, form.photos) : [];
-      newItem = {
+      await upsertItem({
         id, kind: "singola", game: form.game, name: form.name.trim(), setName: form.setName,
         cardNumber: form.cardNumber, condition: form.condition, category: form.category, language: form.language,
         gradingCompany: form.gradingCompany || null, grade: form.grade || null,
         unitCost: parseFloat(form.price) || 0, purchaseDate: form.purchaseDate, source: form.source,
         purchaseNotes: form.notes, photoKeys, status: "in_stock", sale: null, createdAt: Date.now(),
-      };
+      });
     } else {
       const id = uid();
       const photoKeys = form.photos && form.photos.length ? await savePhotos(`photo:lot:${id}`, form.photos) : [];
-      newItem = {
+      await upsertLot({
         id, kind: "lotto", lotName: form.lotName.trim(), game: form.game,
         totalCost: parseFloat(form.price) || 0, quantity: Math.max(1, parseInt(form.quantity) || 1),
         purchaseDate: form.purchaseDate, source: form.source, purchaseNotes: form.notes,
-        photoKeys, createdAt: Date.now(), cards: [],
-      };
+        photoKeys, createdAt: Date.now(),
+      });
     }
-    await persist([...items, newItem]);
+    bumpDataVersion();
     setShowAdd(false);
   }
 
   async function handleUpdateItem(id, changes) {
-    const target = items.find((i) => i.id === id);
-    await deletePhotoKeys(target.photoKeys);
+    if (!editItem) return;
+    await deletePhotoKeys(editItem.photoKeys);
     const photoKeys = changes.photos && changes.photos.length ? await savePhotos(`photo:${id}`, changes.photos) : [];
-    const next = items.map((i) => (i.id === id ? { ...i, ...changes, photoKeys, photos: undefined } : i));
-    await persist(next);
+    await upsertItem({ ...editItem, ...changes, photoKeys, photos: undefined });
+    bumpDataVersion();
     setEditItemId(null);
   }
 
   async function handleDeleteItem(id) {
-    const target = items.find((i) => i.id === id);
+    const target = editItem || detailItem;
     if (target) await deletePhotoKeys(target.photoKeys);
-    await persist(items.filter((i) => i.id !== id));
+    await deleteItemRecord(id);
+    bumpDataVersion();
     setEditItemId(null); setDetailItemId(null);
   }
 
   async function handleRegisterSale(id, saleData) {
-    const sale = { id: uid(), ...saleData };
-    const next = items.map((i) => (i.id === id ? { ...i, status: "sold", sale } : i));
-    await persist(next);
+    await sellItemRecord(id, { id: uid(), ...saleData });
+    bumpDataVersion();
     setSellItemId(null);
   }
   async function handleCancelSale(id) {
-    const next = items.map((i) => (i.id === id ? { ...i, status: "in_stock", sale: null } : i));
-    await persist(next);
+    await cancelItemSaleRecord(id);
+    bumpDataVersion();
   }
   async function handleListItem(id, listing) {
-    const next = items.map((i) => (i.id === id ? { ...i, status: "listed", listing } : i));
-    await persist(next);
+    await listItemRecord(id, listing);
+    bumpDataVersion();
     setListingItemId(null);
   }
   async function handleUnlistItem(id) {
-    const next = items.map((i) => (i.id === id ? { ...i, status: "in_stock", listing: null } : i));
-    await persist(next);
+    await unlistItemRecord(id);
+    bumpDataVersion();
   }
 
   // ---- lot handlers ----
   async function handleUpdateLot(lotId, changes) {
-    const target = items.find((i) => i.id === lotId);
-    await deletePhotoKeys(target.photoKeys);
+    if (!editLot) return;
+    await deletePhotoKeys(editLot.photoKeys);
     const photoKeys = changes.photos && changes.photos.length ? await savePhotos(`photo:lot:${lotId}`, changes.photos) : [];
-    const next = items.map((i) => (i.id === lotId ? { ...i, ...changes, photoKeys, photos: undefined } : i));
-    await persist(next);
+    await upsertLot({ ...editLot, ...changes, photoKeys, photos: undefined });
+    bumpDataVersion();
     setEditLotId(null);
   }
 
   async function handleDeleteLot(lotId) {
-    const target = items.find((i) => i.id === lotId);
+    const target = editLot || detailLot;
     if (target) {
       await deletePhotoKeys(target.photoKeys);
       for (const c of target.cards) await deletePhotoKeys(c.photoKeys);
     }
-    await persist(items.filter((i) => i.id !== lotId));
+    await deleteLotRecord(lotId); // lot_cards cascade-delete with it (FK on delete cascade)
+    bumpDataVersion();
     setEditLotId(null); setDetailLotId(null);
   }
 
   async function handleAddLotCard(lotId, form) {
     const cardId = uid();
     const photoKeys = form.photos && form.photos.length ? await savePhotos(`photo:${cardId}`, form.photos) : [];
-    const card = {
-      id: cardId, name: form.name || `Carta ${(items.find((i) => i.id === lotId)?.cards.length || 0) + 1}`,
+    await upsertLotCard({
+      id: cardId, name: form.name || `Carta ${(addCardLot?.cards.length || 0) + 1}`,
       game: form.game, setName: form.setName, cardNumber: form.cardNumber, condition: form.condition,
       category: form.category, language: form.language, gradingCompany: form.gradingCompany || null, grade: form.grade || null,
       assignedCost: form.assignedCost, photoKeys, status: "in_stock", sale: null, createdAt: Date.now(),
-    };
-    const next = items.map((i) => (i.id === lotId ? { ...i, cards: [...i.cards, card] } : i));
-    await persist(next);
+    }, lotId);
+    bumpDataVersion();
     setAddCardLotId(null);
   }
 
   async function handleUpdateLotCard(lotId, cardId, changes) {
-    const lot = items.find((i) => i.id === lotId);
-    const card = lot.cards.find((c) => c.id === cardId);
-    await deletePhotoKeys(card.photoKeys);
+    if (!editLotCardResolved) return;
+    await deletePhotoKeys(editLotCardResolved.card.photoKeys);
     const photoKeys = changes.photos && changes.photos.length ? await savePhotos(`photo:${cardId}`, changes.photos) : [];
-    const next = items.map((i) => {
-      if (i.id !== lotId) return i;
-      return { ...i, cards: i.cards.map((c) => (c.id === cardId ? { ...c, ...changes, photoKeys, photos: undefined } : c)) };
-    });
-    await persist(next);
+    await upsertLotCard({ ...editLotCardResolved.card, ...changes, photoKeys, photos: undefined }, lotId);
+    bumpDataVersion();
     setEditLotCard(null);
   }
 
   async function handleDeleteLotCard(lotId, cardId) {
-    const lot = items.find((i) => i.id === lotId);
-    const card = lot.cards.find((c) => c.id === cardId);
-    if (card) await deletePhotoKeys(card.photoKeys);
-    const next = items.map((i) => (i.id === lotId ? { ...i, cards: i.cards.filter((c) => c.id !== cardId) } : i));
-    await persist(next);
+    if (editLotCardResolved) await deletePhotoKeys(editLotCardResolved.card.photoKeys);
+    await deleteLotCardRecord(cardId);
+    bumpDataVersion();
     setEditLotCard(null); setDetailLotCard(null);
   }
 
   async function handleSellLotCard(lotId, cardId, saleData) {
-    const sale = { id: uid(), ...saleData };
-    const next = items.map((i) => {
-      if (i.id !== lotId) return i;
-      return { ...i, cards: i.cards.map((c) => (c.id === cardId ? { ...c, status: "sold", sale } : c)) };
-    });
-    await persist(next);
+    await sellLotCardRecord(cardId, { id: uid(), ...saleData });
+    bumpDataVersion();
     setSellLotCard(null);
   }
   async function handleCancelLotCardSale(lotId, cardId) {
-    const next = items.map((i) => {
-      if (i.id !== lotId) return i;
-      return { ...i, cards: i.cards.map((c) => (c.id === cardId ? { ...c, status: "in_stock", sale: null } : c)) };
-    });
-    await persist(next);
+    await cancelLotCardSaleRecord(cardId);
+    bumpDataVersion();
   }
   async function handleListLotCard(lotId, cardId, listing) {
-    const next = items.map((i) => {
-      if (i.id !== lotId) return i;
-      return { ...i, cards: i.cards.map((c) => (c.id === cardId ? { ...c, status: "listed", listing } : c)) };
-    });
-    await persist(next);
+    await listLotCardRecord(cardId, listing);
+    bumpDataVersion();
     setListingLotCard(null);
   }
   async function handleUnlistLotCard(lotId, cardId) {
-    const next = items.map((i) => {
-      if (i.id !== lotId) return i;
-      return { ...i, cards: i.cards.map((c) => (c.id === cardId ? { ...c, status: "in_stock", listing: null } : c)) };
-    });
-    await persist(next);
+    await unlistLotCardRecord(cardId);
+    bumpDataVersion();
   }
 
   // ---- bulk sale: sell several cards from anywhere in the inventory together, or
   // cards that don't exist in the inventory yet (catalogs them first, cost optional) ----
   async function handleBulkSell(refs, saleData) {
-    const newItems = refs.filter((r) => r.kind === "new").map((r) => ({
-      id: uid(), kind: "singola", game: r.game, name: r.name, setName: r.setName || "",
-      cardNumber: r.cardNumber || "", condition: r.condition, category: r.category, language: r.language,
-      gradingCompany: r.gradingCompany || null, grade: r.grade || null,
-      unitCost: r.cost, purchaseDate: todayISO(), source: "", purchaseNotes: "",
-      photoKeys: [], status: "in_stock", sale: null, createdAt: Date.now(),
-    }));
-    let newIdx = 0;
-    const resolvedRefs = refs.map((r) => (r.kind === "new" ? { kind: "singola", id: newItems[newIdx++].id } : r));
-    const baseItems = newItems.length ? [...items, ...newItems] : items;
+    const newIds = new Map();
+    for (const r of refs) {
+      if (r.kind !== "new") continue;
+      const id = uid();
+      await upsertItem({
+        id, kind: "singola", game: r.game, name: r.name, setName: r.setName || "",
+        cardNumber: r.cardNumber || "", condition: r.condition, category: r.category, language: r.language,
+        gradingCompany: r.gradingCompany || null, grade: r.grade || null,
+        unitCost: r.cost, purchaseDate: todayISO(), source: "", purchaseNotes: "",
+        photoKeys: [], status: "in_stock", sale: null, createdAt: Date.now(),
+      });
+      newIds.set(r, id);
+    }
+    const resolvedRefs = refs.map((r) => (r.kind === "new" ? { kind: "singola", id: newIds.get(r) } : r));
 
     if (resolvedRefs.length === 1) {
       const [ref] = resolvedRefs;
       const sale = { id: uid(), ...saleData };
-      const next = baseItems.map((it) => {
-        if (ref.kind === "singola") return it.id === ref.id ? { ...it, status: "sold", sale } : it;
-        if (it.id !== ref.lotId) return it;
-        return { ...it, cards: it.cards.map((c) => (c.id === ref.id ? { ...c, status: "sold", sale } : c)) };
-      });
-      await persist(next);
+      if (ref.kind === "singola") await sellItemRecord(ref.id, sale);
+      else await sellLotCardRecord(ref.id, sale);
+      bumpDataVersion();
       setShowBulkSale(false);
       return;
     }
@@ -371,36 +384,25 @@ function AppInner({ auth }) {
       date: saleData.date, buyer: saleData.buyer, carrier: saleData.carrier, tracking: saleData.tracking, notes: saleData.notes,
       price: null,
     };
-    const singolaIds = new Set(resolvedRefs.filter((r) => r.kind === "singola").map((r) => r.id));
-    const lotCardIds = {};
-    resolvedRefs.filter((r) => r.kind === "lotto").forEach((r) => {
-      if (!lotCardIds[r.lotId]) lotCardIds[r.lotId] = new Set();
-      lotCardIds[r.lotId].add(r.id);
-    });
-    const next = baseItems.map((it) => {
-      if (it.kind === "singola") {
-        return singolaIds.has(it.id) ? { ...it, status: "sold", sale } : it;
-      }
-      const ids = lotCardIds[it.id];
-      if (!ids) return it;
-      return { ...it, cards: it.cards.map((c) => (ids.has(c.id) ? { ...c, status: "sold", sale } : c)) };
-    });
-    await persist(next);
+    const singolaIds = resolvedRefs.filter((r) => r.kind === "singola").map((r) => r.id);
+    const lotCardIds = resolvedRefs.filter((r) => r.kind === "lotto").map((r) => r.id);
+    await upsertSaleRecord(sale);
+    await Promise.all([
+      ...singolaIds.map((id) => updateItemFields(id, { status: "sold", sale_id: groupId })),
+      ...lotCardIds.map((id) => updateLotCardFields(id, { status: "sold", sale_id: groupId })),
+    ]);
+    bumpDataVersion();
     setShowBulkSale(false);
   }
 
   async function handleCancelGroupSale(groupId) {
-    const next = items.map((it) => {
-      if (it.kind === "singola") {
-        return it.sale && it.sale.groupId === groupId ? { ...it, status: "in_stock", sale: null } : it;
-      }
-      return { ...it, cards: it.cards.map((c) => (c.sale && c.sale.groupId === groupId ? { ...c, status: "in_stock", sale: null } : c)) };
-    });
-    await persist(next);
+    await cancelGroupSaleRecord(groupId);
+    bumpDataVersion();
     setDetailGroupSaleId(null);
   }
 
   async function handleExportCSV() {
+    const items = await exportInventoryFull();
     exportInventoryCSV(items, catalog.GAME_META, t);
   }
 
@@ -408,30 +410,27 @@ function AppInner({ auth }) {
   // currently-listed item (never the purchase cost), grouped by game and optionally
   // restricted to just one ----
   async function handleExportListingsPDF(gameFilter) {
+    if (!exportListings) return;
     const byGame = {};
-    for (const it of singolaItems) {
-      if (it.status !== "listed" || !it.listing) continue;
+    for (const it of exportListings.singolaItems) {
       if (gameFilter !== "all" && it.game !== gameFilter) continue;
       (byGame[it.game] ||= []).push({
         name: cardDisplayName(it.name, it.cardNumber),
         setName: it.setName, condition: it.condition, language: it.language,
         gradingCompany: it.gradingCompany, grade: it.grade,
-        photoKey: it.photoKeys?.[0], price: it.listing.price,
+        photoKey: it.photoKeys?.[0], price: it.listing?.price,
       });
     }
-    for (const lot of lotItems) {
-      for (const c of lot.cards) {
-        if (c.status !== "listed" || !c.listing) continue;
-        const g = c.game || lot.game;
-        if (gameFilter !== "all" && g !== gameFilter) continue;
-        (byGame[g] ||= []).push({
-          name: `${lot.lotName} › ${cardDisplayName(c.name || t("common.unnamedCard"), c.cardNumber)}`,
-          setName: c.setName, condition: c.condition, language: c.language,
-          gradingCompany: c.gradingCompany, grade: c.grade,
-          photoKey: c.photoKeys && c.photoKeys.length ? c.photoKeys[0] : lot.photoKeys?.[0],
-          price: c.listing.price,
-        });
-      }
+    for (const c of exportListings.lotCards) {
+      const g = c.game || c.lotGame;
+      if (gameFilter !== "all" && g !== gameFilter) continue;
+      (byGame[g] ||= []).push({
+        name: `${c.lotName} › ${cardDisplayName(c.name || t("common.unnamedCard"), c.cardNumber)}`,
+        setName: c.setName, condition: c.condition, language: c.language,
+        gradingCompany: c.gradingCompany, grade: c.grade,
+        photoKey: c.photoKeys && c.photoKeys.length ? c.photoKeys[0] : c.lotPhotoKeys?.[0],
+        price: c.listing?.price,
+      });
     }
 
     const sections = catalog.games
@@ -447,19 +446,15 @@ function AppInner({ auth }) {
     setShowExportPdf(false);
   }
 
-  // ---- derived data ----
-  const singolaItems = items.filter((i) => i.kind === "singola");
-  const lotItems = items.filter((i) => i.kind === "lotto");
-  const allLotCards = lotItems.flatMap((l) => l.cards.map((c) => ({ ...c, lotId: l.id, lotName: l.lotName })));
-
+  // ---- money math (Dashboard / Vendite header stats) — same logic as before,
+  // just fed by the lean financialSummary fetch instead of the full in-memory array ----
+  const { singolaItems, lotItems } = financialSummary;
   const inStockSingola = singolaItems.filter((i) => i.status !== "sold");
   const listedSingola = singolaItems.filter((i) => i.status === "listed");
+  const allLotCards = lotItems.flatMap((l) => l.cards.map((c) => ({ ...c, lotId: l.id })));
   const listedLotCards = allLotCards.filter((c) => c.status === "listed");
   const allSaleUnitsRaw = buildAllSaleUnits(singolaItems, lotItems);
-  const gamesWithListedItems = catalog.games.filter((g) => listedSingola.some((i) => i.game === g.key) || listedLotCards.some((c) => (c.game || "") === g.key));
 
-  // Carte "in magazzino": include sia le carte singole in stock sia, per ogni lotto,
-  // tutte le unità non ancora vendute — comprese quelle non ancora catalogate individualmente.
   const inStockCount =
     inStockSingola.length +
     lotItems.reduce((s, l) => {
@@ -474,7 +469,6 @@ function AppInner({ auth }) {
       return s + Math.max(0, l.totalCost - soldKnownInLot);
     }, 0);
 
-  // ---- period filter ----
   const periodRange = getPeriodRange(period, customFrom, customTo);
   const inRange = makeInRange(periodRange);
 
@@ -493,109 +487,11 @@ function AppInner({ auth }) {
     singolaItems.filter((i) => inRange(i.purchaseDate)).reduce((s, i) => s + i.unitCost, 0) +
     lotItems.filter((l) => inRange(l.purchaseDate)).reduce((s, l) => s + l.totalCost, 0);
 
-  const filtered = items
-    .filter((i) => filterGame === "all" || i.game === filterGame)
-    .filter((i) => filterKind === "all" || i.kind === filterKind)
-    .filter((i) => {
-      if (filterGraded === "all") return true;
-      const isGraded = i.kind === "singola" ? !!i.gradingCompany : i.cards.some((c) => !!c.gradingCompany);
-      return filterGraded === "graded" ? isGraded : !isGraded;
-    })
-    .filter((i) => {
-      if (filterCategory === "all") return true;
-      return i.kind === "singola" ? i.category === filterCategory : i.cards.some((c) => c.category === filterCategory);
-    })
-    .filter((i) => {
-      if (filterStatus === "all") return true;
-      if (i.kind === "singola") return i.status === filterStatus;
-      const hasSold = i.cards.some((c) => c.status === "sold");
-      const hasListed = i.cards.some((c) => c.status === "listed");
-      const hasStock = i.cards.some((c) => c.status === "in_stock") || i.cards.length < i.quantity;
-      if (filterStatus === "sold") return hasSold;
-      if (filterStatus === "listed") return hasListed;
-      return hasStock;
-    })
-    .filter((i) => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      if (i.kind === "singola") return (i.name || "").toLowerCase().includes(q) || (i.setName || "").toLowerCase().includes(q);
-      return (i.lotName || "").toLowerCase().includes(q) || i.cards.some((c) => (c.name || "").toLowerCase().includes(q));
-    });
-  const sortedFiltered = sortUnits(filtered, sortInventory, {
-    getDate: (i) => i.createdAt,
-    getPrice: (i) => (i.kind === "singola" ? i.unitCost : i.totalCost),
-    getName: (i) => (i.kind === "singola" ? i.name : i.lotName) || "",
-  });
-
   const allSoldUnits = [...periodSaleUnits].sort((a, b) => new Date(b.sale.date) - new Date(a.sale.date));
 
-  const recentSales = allSoldUnits.slice(0, 5);
-  const sortedSoldUnits = sortUnits(allSoldUnits, sortSales, {
-    getDate: (u) => new Date(u.sale.date).getTime(),
-    getPrice: (u) => u.sale.price,
-    getName: (u) => u.name || "",
-  });
-
-  const rawListedUnits = [
-    ...listedSingola.map((i) => ({ id: i.id, kind: "singola", name: cardDisplayName(i.name, i.cardNumber), game: i.game, photoKey: i.photoKeys?.[0], listing: i.listing })),
-    ...listedLotCards.map((c) => ({ id: c.id, kind: "lotto", lotId: c.lotId, name: `${c.lotName} › ${cardDisplayName(c.name || t("common.unnamedCard"), c.cardNumber)}`, game: c.game, photoKey: c.photoKeys?.[0], listing: c.listing })),
-  ];
-  const listingPlatforms = [...new Set(rawListedUnits.map((u) => u.listing?.platform).filter(Boolean))].sort();
-  const filteredListedUnits = rawListedUnits
-    .filter((u) => listingPlatformFilter === "all" || u.listing?.platform === listingPlatformFilter)
-    .filter((u) => listingPriceMin === "" || (u.listing?.price ?? 0) >= parseFloat(listingPriceMin))
-    .filter((u) => listingPriceMax === "" || (u.listing?.price ?? 0) <= parseFloat(listingPriceMax));
-  const allListedUnits = sortUnits(filteredListedUnits, sortListings, {
-    getDate: (u) => new Date(u.listing?.listedDate || 0).getTime(),
-    getPrice: (u) => u.listing?.price,
-    getName: (u) => u.name || "",
-  });
-  const totalListedValue = allListedUnits.reduce((s, u) => s + (u.listing?.price || 0), 0);
-
-  const detailItem = detailItemId ? items.find((i) => i.id === detailItemId) : null;
-  const editItem = editItemId ? items.find((i) => i.id === editItemId) : null;
-  const sellItem = sellItemId ? items.find((i) => i.id === sellItemId) : null;
-  const detailLot = detailLotId ? items.find((i) => i.id === detailLotId) : null;
-  const editLot = editLotId ? items.find((i) => i.id === editLotId) : null;
-  const addCardLot = addCardLotId ? items.find((i) => i.id === addCardLotId) : null;
-
-  function resolveLotCard(ref) {
-    if (!ref) return null;
-    const lot = items.find((i) => i.id === ref.lotId);
-    if (!lot) return null;
-    const card = lot.cards.find((c) => c.id === ref.cardId);
-    if (!card) return null;
-    return { lot, card };
-  }
-  const detailLotCardResolved = resolveLotCard(detailLotCard);
-  const editLotCardResolved = resolveLotCard(editLotCard);
-  const sellLotCardResolved = resolveLotCard(sellLotCard);
-  const listingLotCardResolved = resolveLotCard(listingLotCard);
-  const listingItem = listingItemId ? items.find((i) => i.id === listingItemId) : null;
-
-  function resolveGroupSale(groupId) {
-    if (!groupId) return null;
-    const members = [];
-    let sale = null;
-    for (const it of items) {
-      if (it.kind === "singola") {
-        if (it.sale && it.sale.groupId === groupId) {
-          sale = it.sale;
-          members.push({ id: it.id, kind: "singola", name: cardDisplayName(it.name, it.cardNumber), cost: it.unitCost, photoKey: it.photoKeys?.[0], sourceLabel: t("forms.singleCard") });
-        }
-      } else {
-        for (const c of it.cards) {
-          if (c.sale && c.sale.groupId === groupId) {
-            sale = c.sale;
-            members.push({ id: c.id, kind: "lotto", lotId: it.id, name: cardDisplayName(c.name || t("common.unnamedCard"), c.cardNumber), cost: c.assignedCost, photoKey: c.photoKeys?.[0] || it.photoKeys?.[0], sourceLabel: t("details.groupSaleSourceLabel", { lotName: it.lotName }) });
-          }
-        }
-      }
-    }
-    if (!members.length) return null;
-    return { groupId, sale, members };
-  }
-  const detailGroupSaleResolved = resolveGroupSale(detailGroupSaleId);
+  const totalListedValue = listedSingola.reduce((s, i) => s + (i.listing?.price || 0), 0)
+    + listedLotCards.reduce((s, c) => s + (c.listing?.price || 0), 0);
+  const listedUnitsCount = listedSingola.length + listedLotCards.length;
 
   // Opens the right detail modal for a sale "unit" (single card, lot card, or group
   // sale) — shared between the Dashboard's recent sales and the Vendite list.
@@ -612,11 +508,16 @@ function AppInner({ auth }) {
   return (
     <div style={{ background: C.bg, color: C.text, fontFamily: "'Inter', system-ui, sans-serif", position: "relative" }} className="app-shell w-full flex flex-col lg:flex-row rounded-2xl overflow-hidden">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
         .app-shell { height: 100vh; height: 100dvh; }
+        /* 92vh is computed against the layout viewport, which on mobile browsers is
+           taller than what's actually visible once the address bar is showing — a
+           modal/sheet capped at 92vh can then extend above the real fold, cutting off
+           its own header. dvh tracks the visible viewport instead; browsers that don't
+           support it just keep the vh fallback above. */
+        .modal-sheet { max-height: 92vh; max-height: 92dvh; }
 
         /* Native-feeling touch scrolling: momentum on iOS (Android already has it
            built in), and each scrollable area bounces on its own instead of the
@@ -667,47 +568,35 @@ function AppInner({ auth }) {
         </div>
       </aside>
 
-      <div key={loading ? "loading" : view} className="anim-fade-in flex-1 min-w-0 min-h-0 overflow-y-auto px-5 py-5 pb-24 lg:px-10 lg:py-8 lg:pb-10">
+      <div key={view} className="anim-fade-in flex-1 min-w-0 min-h-0 overflow-y-auto px-5 py-5 pb-24 lg:px-10 lg:py-8 lg:pb-10">
         <div className="lg:max-w-6xl lg:mx-auto">
-        {loading ? (
-          <div className="text-center py-16 text-sm" style={{ color: C.textFaint }}>{t("common.loadingInventory")}</div>
-        ) : view === "dashboard" ? (
-          <DashboardSection
-            period={period} setPeriod={setPeriod} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo}
-            showDashboardFilters={showDashboardFilters} setShowDashboardFilters={setShowDashboardFilters}
-            totalInvested={totalInvested} inStockCount={inStockCount} valueInStock={valueInStock}
-            totalRevenue={totalRevenue} marginKnown={marginKnown} roiKnown={roiKnown} revenueOfSoldKnown={revenueOfSoldKnown} revenueUnknownCost={revenueUnknownCost}
-            allListedUnits={allListedUnits} totalListedValue={totalListedValue} setView={setView}
-            allSoldUnits={allSoldUnits} recentSales={recentSales} onSelectSaleUnit={openSaleUnit}
-          />
+        {view === "dashboard" ? (
+          summaryLoading ? (
+            <div className="text-center py-16 text-sm" style={{ color: C.textFaint }}>{t("common.loadingInventory")}</div>
+          ) : (
+            <DashboardSection
+              period={period} setPeriod={setPeriod} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo}
+              totalInvested={totalInvested} inStockCount={inStockCount} valueInStock={valueInStock}
+              totalRevenue={totalRevenue} marginKnown={marginKnown} roiKnown={roiKnown} revenueOfSoldKnown={revenueOfSoldKnown} revenueUnknownCost={revenueUnknownCost}
+              listedUnitsCount={listedUnitsCount} totalListedValue={totalListedValue} setView={setView}
+              allSoldUnits={allSoldUnits} recentSales={recentSales} onSelectSaleUnit={openSaleUnit}
+            />
+          )
         ) : view === "inventory" ? (
           <InventorySection
-            search={search} setSearch={setSearch} sortedFiltered={sortedFiltered} itemsCount={items.length}
-            showInventoryFilters={showInventoryFilters} setShowInventoryFilters={setShowInventoryFilters}
-            filterGame={filterGame} setFilterGame={setFilterGame} filterStatus={filterStatus} setFilterStatus={setFilterStatus}
-            filterKind={filterKind} setFilterKind={setFilterKind}
-            filterGraded={filterGraded} setFilterGraded={setFilterGraded}
-            filterCategory={filterCategory} setFilterCategory={setFilterCategory}
-            sortInventory={sortInventory} setSortInventory={setSortInventory}
-            games={catalog.games}
+            games={catalog.games} dataVersion={dataVersion}
             onOpenItem={(id) => setDetailItemId(id)} onOpenLot={(id) => setDetailLotId(id)}
           />
         ) : view === "listings" ? (
           <ListingsSection
-            allListedUnits={allListedUnits} totalListedValue={totalListedValue} rawListedUnitsCount={rawListedUnits.length}
-            showListingFilters={showListingFilters} setShowListingFilters={setShowListingFilters}
-            listingPlatforms={listingPlatforms} listingPlatformFilter={listingPlatformFilter} setListingPlatformFilter={setListingPlatformFilter}
-            listingPriceMin={listingPriceMin} setListingPriceMin={setListingPriceMin} listingPriceMax={listingPriceMax} setListingPriceMax={setListingPriceMax}
-            sortListings={sortListings} setSortListings={setSortListings}
+            dataVersion={dataVersion}
             onOpenUnit={openListedUnit} onExportPdf={() => setShowExportPdf(true)}
           />
         ) : view === "sales" ? (
           <SalesSection
+            dataVersion={dataVersion}
             totalRevenue={totalRevenue} costOfSoldKnown={costOfSoldKnown} marginKnown={marginKnown} revenueUnknownCost={revenueUnknownCost}
-            sortedSoldUnits={sortedSoldUnits}
-            showSalesFilters={showSalesFilters} setShowSalesFilters={setShowSalesFilters}
             period={period} setPeriod={setPeriod} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo}
-            sortSales={sortSales} setSortSales={setSortSales}
             onSelectSaleUnit={openSaleUnit}
           />
         ) : view === "report" ? (
@@ -715,22 +604,21 @@ function AppInner({ auth }) {
             <ReportSection
               singolaItems={singolaItems} lotItems={lotItems} games={catalog.games}
               period={period} setPeriod={setPeriod} customFrom={customFrom} setCustomFrom={setCustomFrom} customTo={customTo} setCustomTo={setCustomTo}
-              showReportFilters={showReportFilters} setShowReportFilters={setShowReportFilters}
             />
           </Suspense>
         ) : (
-          <SettingsSection auth={auth} catalog={catalog} itemCount={items.length} onExportCSV={handleExportCSV} />
+          <SettingsSection auth={auth} catalog={catalog} onExportCSV={handleExportCSV} />
         )}
         </div>
       </div>
 
       {view === "inventory" && (
-        <button onClick={() => setShowAdd(true)} style={{ background: C.gold, color: "#181305" }} className="absolute right-5 bottom-[84px] lg:bottom-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
+        <button onClick={() => setShowAdd(true)} style={{ background: C.gold, color: C.goldText }} className="absolute right-5 bottom-[84px] lg:bottom-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
           <Plus size={24} />
         </button>
       )}
       {view === "sales" && (
-        <button onClick={() => { setBulkSaleCount(0); setShowBulkSale(true); }} title="Vendi carte" style={{ background: C.teal, color: "#0B231D" }} className="absolute right-5 bottom-[84px] lg:bottom-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
+        <button onClick={() => { setBulkSaleCount(0); setShowBulkSale(true); }} title="Vendi carte" style={{ background: C.teal, color: C.tealText }} className="absolute right-5 bottom-[84px] lg:bottom-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
           <Plus size={24} />
         </button>
       )}
@@ -746,7 +634,6 @@ function AppInner({ auth }) {
       {/* ---- Modals ---- */}
       {showGlobalSearch && (
         <GlobalSearchModal
-          items={items}
           onClose={() => setShowGlobalSearch(false)}
           onOpenItem={(id) => setDetailItemId(id)}
           onOpenLotCard={(lotId, cardId) => setDetailLotCard({ lotId, cardId })}
@@ -812,12 +699,15 @@ function AppInner({ auth }) {
       )}
       {showBulkSale && (
         <Modal title={bulkSaleCount > 1 ? t("app.bulkSale") : t("forms.registerSale")} onClose={() => setShowBulkSale(false)} eyebrow={t("app.bulkSaleEyebrow")} wide>
-          <BulkSaleWizard items={items} onCancel={() => setShowBulkSale(false)} onSubmit={(refs, saleData) => handleBulkSell(refs, saleData)} onSelectionChange={setBulkSaleCount} />
+          <BulkSaleWizard onCancel={() => setShowBulkSale(false)} onSubmit={(refs, saleData) => handleBulkSell(refs, saleData)} onSelectionChange={setBulkSaleCount} />
         </Modal>
       )}
       {showExportPdf && (
         <Modal title={t("pdfExport.menuButton")} onClose={() => setShowExportPdf(false)}>
-          <ExportListingsPdfForm gamesAvailable={gamesWithListedItems} onCancel={() => setShowExportPdf(false)} onSubmit={handleExportListingsPDF} />
+          <ExportListingsPdfForm
+            gamesAvailable={exportListings ? catalog.games.filter((g) => exportListings.singolaItems.some((i) => i.game === g.key) || exportListings.lotCards.some((c) => (c.game || c.lotGame) === g.key)) : []}
+            onCancel={() => setShowExportPdf(false)} onSubmit={handleExportListingsPDF}
+          />
         </Modal>
       )}
       {detailGroupSaleResolved && (

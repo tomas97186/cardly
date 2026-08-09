@@ -14,7 +14,7 @@ export function PeriodFilter({ period, setPeriod, customFrom, setCustomFrom, cus
             key={val}
             onClick={() => setPeriod(val)}
             className="px-3 py-1.5 rounded-full text-[12.5px] font-medium whitespace-nowrap flex items-center gap-1.5"
-            style={{ background: period === val ? C.gold : C.surfaceAlt, color: period === val ? "#181305" : C.textDim }}
+            style={{ background: period === val ? C.gold : C.surfaceAlt, color: period === val ? C.goldText : C.textDim }}
           >
             {t(labelKey)}
           </button>

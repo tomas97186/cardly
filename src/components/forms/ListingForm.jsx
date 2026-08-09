@@ -3,7 +3,7 @@ import { Tag } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { todayISO } from "../../lib/format";
+import { todayISO, currentCurrencySymbol } from "../../lib/format";
 import { Field } from "../ui/Field";
 import { TextInput, TextArea } from "../ui/Inputs";
 import { PhotoThumb } from "../ui/Photo";
@@ -39,7 +39,7 @@ export function ListingForm({ item, initial, onCancel, onSubmit }) {
         <div className="text-sm font-medium">{item.name}</div>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Field label={t("forms.askingPrice")}><TextInput type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" /></Field>
+        <Field label={t("forms.askingPrice", { symbol: currentCurrencySymbol() })}><TextInput type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" /></Field>
         <Field label={t("forms.listedDate")}><TextInput type="date" value={listedDate} onChange={(e) => setListedDate(e.target.value)} /></Field>
       </div>
       <Field label={t("forms.platform")}>

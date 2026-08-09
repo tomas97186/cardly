@@ -4,6 +4,7 @@ import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { loadPhotoValues } from "../../lib/storage";
+import { currentCurrencySymbol } from "../../lib/format";
 import { Field } from "../ui/Field";
 import { TextInput, Select, TextArea } from "../ui/Inputs";
 import { PhotoPicker } from "../ui/Photo";
@@ -54,7 +55,7 @@ export function EditLotForm({ lot, onCancel, onSubmit, onDelete }) {
         </Select>
       </Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field label={t("forms.lotTotalPrice2")}><TextInput type="number" step="0.01" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} /></Field>
+        <Field label={t("forms.lotTotalPrice2", { symbol: currentCurrencySymbol() })}><TextInput type="number" step="0.01" value={totalCost} onChange={(e) => setTotalCost(e.target.value)} /></Field>
         <Field label={t("forms.lotQuantity")}><TextInput type="number" min={lot.cards.length || 1} value={quantity} onChange={(e) => setQuantity(e.target.value)} /></Field>
       </div>
       <Field label={t("common.purchaseDate")}><TextInput type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} /></Field>

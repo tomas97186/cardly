@@ -2,7 +2,7 @@ import { Edit2, Layers, Plus, ChevronRight } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { euro, fmtDate } from "../../lib/format";
+import { money, fmtDate } from "../../lib/format";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
 import { PhotoThumb, PhotoGallery } from "../ui/Photo";
@@ -35,7 +35,7 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="p-2.5 rounded-xl text-center" style={{ background: C.surfaceAlt }}>
           <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.lotTotal")}</div>
-          <div className="text-sm font-bold mt-0.5">{euro(lot.totalCost)}</div>
+          <div className="text-sm font-bold mt-0.5">{money(lot.totalCost)}</div>
         </div>
         <div className="p-2.5 rounded-xl text-center" style={{ background: C.surfaceAlt }}>
           <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.lotCataloged")}</div>
@@ -43,7 +43,7 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
         </div>
         <div className="p-2.5 rounded-xl text-center" style={{ background: C.surfaceAlt }}>
           <div className="text-[10px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.lotUnallocated")}</div>
-          <div className="text-sm font-bold mt-0.5" style={{ color: unallocated !== 0 ? C.amber : C.text }}>{euro(unallocated)}</div>
+          <div className="text-sm font-bold mt-0.5" style={{ color: unallocated !== 0 ? C.amber : C.text }}>{money(unallocated)}</div>
         </div>
       </div>
 
@@ -66,14 +66,14 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
             const margin = card.sale && costKnown && card.sale.price != null ? card.sale.price - card.assignedCost : null;
             return (
               <button key={card.id} onClick={() => onOpenCard(card)} className="w-full flex items-center gap-3 p-2.5 rounded-xl text-left" style={{ background: C.surfaceAlt }}>
-                <PhotoThumb photoKey={card.photoKeys?.[0] || lot.photoKeys?.[0]} size={40} rounded="8px" iconSize={14} />
+                <PhotoThumb photoKey={card.photoKeys?.[0] || lot.photoKeys?.[0]} size={40} rounded="8px" iconSize={14} preferThumb />
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] font-medium truncate">{card.name || t("common.unnamedCard")}</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <Badge color={cardMeta.color} bg={cardMeta.bg}>{cardMeta.label}</Badge>
-                    {card.gradingCompany && <Badge color={C.info} bg="rgba(108,142,239,0.14)">{card.gradingCompany}{card.grade ? ` ${card.grade}` : ""}</Badge>}
+                    {card.gradingCompany && <Badge color={C.info} bg={`${C.info}24`}>{card.gradingCompany}{card.grade ? ` ${card.grade}` : ""}</Badge>}
                     <span className="text-[11px]" style={{ color: costKnown ? C.textFaint : C.amber }}>
-                      {costKnown ? euro(card.assignedCost) : t("details.costNa")}
+                      {costKnown ? money(card.assignedCost) : t("details.costNa")}
                     </span>
                   </div>
                 </div>
@@ -82,10 +82,10 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
                     {card.status === "sold" ? (card.sale && card.sale.groupId ? t("details.statusSoldGroupShort") : t("details.statusSoldShort")) : card.status === "listed" ? t("details.statusListedShort") : t("details.statusInStockShort")}
                   </span>
                   {card.status === "sold" && margin !== null && (
-                    <span className="text-[11px]" style={{ color: margin >= 0 ? C.teal : C.crimson }}>{margin >= 0 ? "+" : ""}{euro(margin)}</span>
+                    <span className="text-[11px]" style={{ color: margin >= 0 ? C.teal : C.crimson }}>{margin >= 0 ? "+" : ""}{money(margin)}</span>
                   )}
                   {card.status === "listed" && card.listing && (
-                    <span className="text-[11px]" style={{ color: C.info }}>{euro(card.listing.price)}</span>
+                    <span className="text-[11px]" style={{ color: C.info }}>{money(card.listing.price)}</span>
                   )}
                 </div>
                 <ChevronRight size={15} color={C.textFaint} />

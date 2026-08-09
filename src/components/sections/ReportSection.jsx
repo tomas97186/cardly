@@ -1,9 +1,10 @@
+import { useState } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
 } from "recharts";
 import { C } from "../../lib/theme";
 import { useLanguage } from "../../context/LanguageContext";
-import { euro } from "../../lib/format";
+import { money, currentCurrencyCode } from "../../lib/format";
 import { getPeriodRange, makeInRange, PERIOD_OPTIONS } from "../../lib/period";
 import { buildMonthlyTrend, buildGameBreakdown, buildPlatformBreakdown } from "../../lib/reports";
 import { FilterToggle } from "../ui/FilterToggle";
@@ -19,10 +20,10 @@ function monthLabel(year, month, locale) {
   return new Date(year, month, 1).toLocaleDateString(locale, { month: "short" });
 }
 
-// Compact axis ticks ("€1.2K" / "€850") — euro() is meant for full values in lists
-// and tooltips, not cramped chart axes.
-function compactEuro(v, locale) {
-  return new Intl.NumberFormat(locale, { style: "currency", currency: "EUR", notation: "compact", maximumFractionDigits: 1 }).format(v);
+// Compact axis ticks ("1.2K €" / "850 €") — money() is meant for full values in
+// lists and tooltips, not cramped chart axes.
+function compactMoney(v, locale) {
+  return new Intl.NumberFormat(locale, { style: "currency", currency: currentCurrencyCode(), notation: "compact", maximumFractionDigits: 1 }).format(v);
 }
 
 function ChartCard({ title, sub, empty, children }) {
@@ -65,7 +66,7 @@ function ChartTooltip({ active, payload, label }) {
             <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color }} />
             {p.name}
           </span>
-          <span>{euro(p.value)}</span>
+          <span>{money(p.value)}</span>
         </div>
       ))}
     </div>
@@ -75,9 +76,9 @@ function ChartTooltip({ active, payload, label }) {
 export function ReportSection({
   singolaItems, lotItems, games,
   period, setPeriod, customFrom, setCustomFrom, customTo, setCustomTo,
-  showReportFilters, setShowReportFilters,
 }) {
   const { t, lang } = useLanguage();
+  const [showReportFilters, setShowReportFilters] = useState(false);
   const locale = lang === "en" ? "en-US" : "it-IT";
 
   const trend = buildMonthlyTrend(singolaItems, lotItems, 6).map((b) => ({
@@ -104,7 +105,7 @@ export function ReportSection({
           <BarChart data={trend} barGap={3} barCategoryGap="22%" margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke={C.border} />
             <XAxis dataKey="label" tick={{ fill: C.textFaint, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
-            <YAxis tick={{ fill: C.textFaint, fontSize: 11 }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => compactEuro(v, locale)} />
+            <YAxis tick={{ fill: C.textFaint, fontSize: 11 }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => compactMoney(v, locale)} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
             <Bar dataKey="invested" name={t("reports.seriesInvested")} fill={SERIES_COLOR.invested} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
             <Bar dataKey="revenue" name={t("reports.seriesRevenue")} fill={SERIES_COLOR.revenue} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
@@ -139,7 +140,7 @@ export function ReportSection({
           <BarChart data={gameData} barGap={3} barCategoryGap="22%" margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke={C.border} />
             <XAxis dataKey="label" tick={{ fill: C.textFaint, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} />
-            <YAxis tick={{ fill: C.textFaint, fontSize: 11 }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => compactEuro(v, locale)} />
+            <YAxis tick={{ fill: C.textFaint, fontSize: 11 }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => compactMoney(v, locale)} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
             <Bar dataKey="invested" name={t("reports.seriesInvested")} fill={SERIES_COLOR.invested} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
             <Bar dataKey="revenue" name={t("reports.seriesRevenue")} fill={SERIES_COLOR.revenue} radius={[4, 4, 0, 0]} maxBarSize={22} isAnimationActive={false} />
@@ -153,7 +154,7 @@ export function ReportSection({
         <ResponsiveContainer>
           <BarChart data={platformData} layout="vertical" margin={{ top: 4, right: 24, left: 4, bottom: 0 }}>
             <CartesianGrid horizontal={false} stroke={C.border} />
-            <XAxis type="number" tick={{ fill: C.textFaint, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} tickFormatter={(v) => compactEuro(v, locale)} />
+            <XAxis type="number" tick={{ fill: C.textFaint, fontSize: 11 }} axisLine={{ stroke: C.border }} tickLine={false} tickFormatter={(v) => compactMoney(v, locale)} />
             <YAxis type="category" dataKey="platform" tick={{ fill: C.textDim, fontSize: 12 }} axisLine={false} tickLine={false} width={110} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(255,255,255,0.04)" }} />
             <Bar dataKey="margin" name={t("reports.seriesMargin")} fill={SERIES_COLOR.margin} radius={[0, 4, 4, 0]} maxBarSize={20} isAnimationActive={false}>

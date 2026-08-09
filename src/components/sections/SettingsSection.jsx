@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   User, LogOut, KeyRound, ShieldCheck, ShieldAlert, Package, Clock, Gamepad2, Tag, Plus, X, FileText,
   ChevronRight, ChevronLeft, Award, Info, AlertTriangle, Scale, FileCheck, Code2, Mail, Languages, Check,
+  SunMedium, Moon, Coins,
 } from "lucide-react";
 import { C } from "../../lib/theme";
-import { fmtDate } from "../../lib/format";
+import { fmtDate, CURRENCY_OPTIONS } from "../../lib/format";
 import { SUPPORT_EMAIL } from "../../lib/appConfig";
 import { useLanguage } from "../../context/LanguageContext";
+import { useTheme } from "../../context/ThemeContext";
+import { useCurrency } from "../../context/CurrencyContext";
+import { loadInventoryCount } from "../../lib/storage";
 import { Modal } from "../ui/Modal";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
 import { Field } from "../ui/Field";
@@ -17,14 +21,16 @@ const APP_VERSION = "1.0.0";
 
 // ---------- Settings home: a menu of categories instead of every option stacked on
 // one page, so it stays manageable as more settings are added. ----------
-export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
+export function SettingsSection({ auth, catalog, onExportCSV }) {
   const { t, lang } = useLanguage();
-  const [panel, setPanel] = useState(null); // null (menu) | "account" | "catalog" | "data" | "language" | "about"
+  const { mode } = useTheme();
+  const { currency } = useCurrency();
+  const [panel, setPanel] = useState(null); // null (menu) | "account" | "catalog" | "data" | "language" | "theme" | "about"
 
   if (panel === "account") {
     return (
       <SettingsPanel title={t("settings.account")} onBack={() => setPanel(null)}>
-        <AccountPanel auth={auth} itemCount={itemCount} />
+        <AccountPanel auth={auth} />
       </SettingsPanel>
     );
   }
@@ -40,14 +46,22 @@ export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
   if (panel === "data") {
     return (
       <SettingsPanel title={t("settings.csvExport")} onBack={() => setPanel(null)}>
-        <CSVPanel itemCount={itemCount} onExportCSV={onExportCSV} />
+        <CSVPanel onExportCSV={onExportCSV} />
       </SettingsPanel>
     );
   }
   if (panel === "language") {
     return (
-      <SettingsPanel title={t("settings.language")} onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.languageAndCurrency")} onBack={() => setPanel(null)}>
         <LanguagePanel />
+        <CurrencyPanel />
+      </SettingsPanel>
+    );
+  }
+  if (panel === "theme") {
+    return (
+      <SettingsPanel title={t("settings.theme")} onBack={() => setPanel(null)}>
+        <ThemePanel />
       </SettingsPanel>
     );
   }
@@ -63,16 +77,15 @@ export function SettingsSection({ auth, catalog, itemCount, onExportCSV }) {
     <div>
       <h3 className="text-sm font-semibold mb-3" style={{ color: C.textDim }}>{t("settings.title")}</h3>
       <div className="space-y-2">
-        {auth.configured && (
-          <SettingsMenuItem
-            icon={User}
-            title={t("settings.account")}
-            subtitle={auth.user?.email || ""}
-            onClick={() => setPanel("account")}
-          />
-        )}
+        <SettingsMenuItem
+          icon={User}
+          title={t("settings.account")}
+          subtitle={auth.user?.email || ""}
+          onClick={() => setPanel("account")}
+        />
         <SettingsMenuItem icon={Gamepad2} title={t("settings.catalog")} subtitle={t("settings.catalogSubtitle", { games: catalog.games.length, platforms: catalog.platforms.length, grading: catalog.gradingCompanies.length })} onClick={() => setPanel("catalog")} />
-        <SettingsMenuItem icon={Languages} title={t("settings.language")} subtitle={lang === "en" ? t("settings.langEnglish") : t("settings.langItalian")} onClick={() => setPanel("language")} />
+        <SettingsMenuItem icon={Languages} title={t("settings.languageAndCurrency")} subtitle={`${lang === "en" ? t("settings.langEnglish") : t("settings.langItalian")} · ${currency}`} onClick={() => setPanel("language")} />
+        <SettingsMenuItem icon={mode === "light" ? SunMedium : Moon} title={t("settings.theme")} subtitle={mode === "light" ? t("settings.themeLight") : t("settings.themeDark")} onClick={() => setPanel("theme")} />
         <SettingsMenuItem icon={FileText} title={t("settings.csvExport")} subtitle={t("settings.csvExportSubtitle")} onClick={() => setPanel("data")} />
         <SettingsMenuItem icon={Info} title={t("settings.about")} subtitle={t("settings.aboutSubtitle")} onClick={() => setPanel("about")} />
       </div>
@@ -133,10 +146,67 @@ function LanguagePanel() {
   );
 }
 
-function AccountPanel({ auth, itemCount }) {
+function ThemePanel() {
+  const { t } = useLanguage();
+  const { mode, setMode } = useTheme();
+  const options = [
+    ["dark", t("settings.themeDark"), Moon],
+    ["light", t("settings.themeLight"), SunMedium],
+  ];
+  return (
+    <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <div className="flex items-center gap-2 mb-3">
+        <SunMedium size={16} color={C.gold} />
+        <span className="text-sm font-semibold">{t("settings.theme")}</span>
+      </div>
+      <div className="space-y-2">
+        {options.map(([val, label, Icon]) => (
+          <button
+            key={val} onClick={() => setMode(val)}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px]"
+            style={{ background: mode === val ? C.surfaceAlt : "transparent", border: `1px solid ${mode === val ? C.gold : C.border}`, color: mode === val ? C.gold : C.text }}
+          >
+            <Icon size={15} />
+            <span className="flex-1 text-left">{label}</span>
+            {mode === val && <Check size={15} color={C.gold} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CurrencyPanel() {
+  const { t } = useLanguage();
+  const { currency, setCurrency } = useCurrency();
+  return (
+    <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <div className="flex items-center gap-2 mb-3">
+        <Coins size={16} color={C.gold} />
+        <span className="text-sm font-semibold">{t("settings.currency")}</span>
+      </div>
+      <div className="space-y-2">
+        {CURRENCY_OPTIONS.map((c) => (
+          <button
+            key={c.code} onClick={() => setCurrency(c.code)}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px]"
+            style={{ background: currency === c.code ? C.surfaceAlt : "transparent", border: `1px solid ${currency === c.code ? C.gold : C.border}`, color: currency === c.code ? C.gold : C.text }}
+          >
+            <span className="flex-1 text-left">{c.code} · {c.symbol}</span>
+            {currency === c.code && <Check size={15} color={C.gold} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AccountPanel({ auth }) {
   const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [itemCount, setItemCount] = useState(null);
+  useEffect(() => { loadInventoryCount().then(setItemCount); }, []);
 
   async function handleSignOut() {
     setBusy(true);
@@ -163,27 +233,27 @@ function AccountPanel({ auth, itemCount }) {
         </div>
         <div className="mt-3">
           {emailVerified ? (
-            <Badge color={C.teal} bg="rgba(63,179,155,0.14)"><ShieldCheck size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.emailVerified")}</Badge>
+            <Badge color={C.teal} bg={`${C.teal}24`}><ShieldCheck size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.emailVerified")}</Badge>
           ) : (
-            <Badge color={C.amber} bg="rgba(201,138,58,0.14)"><ShieldAlert size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.emailUnverified")}</Badge>
+            <Badge color={C.amber} bg={`${C.amber}24`}><ShieldAlert size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.emailUnverified")}</Badge>
           )}
         </div>
 
         <div className="grid grid-cols-2 gap-2 my-4">
           <div className="p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
             <div className="flex items-center gap-1.5 text-[10.5px] uppercase" style={{ color: C.textFaint }}><Package size={11} /> {t("settings.inInventory")}</div>
-            <div className="text-base font-bold mt-1" style={{ color: C.gold }}>{itemCount}</div>
+            <div className="text-base font-bold mt-1" style={{ color: C.gold }}>{itemCount ?? "—"}</div>
           </div>
           <div className="p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
             <div className="flex items-center gap-1.5 text-[10.5px] uppercase" style={{ color: C.textFaint }}><Clock size={11} /> {t("settings.lastSignIn")}</div>
             <div className="text-[12.5px] font-semibold mt-1.5">{lastSignIn || "—"}</div>
           </div>
         </div>
-
-        <GhostButton full onClick={() => setShowChangePassword(true)}>
-          <KeyRound size={14} /> {t("settings.changePassword")}
-        </GhostButton>
       </div>
+
+      <GhostButton full onClick={() => setShowChangePassword(true)}>
+        <KeyRound size={14} /> {t("settings.changePassword")}
+      </GhostButton>
 
       <GhostButton full onClick={handleSignOut} disabled={busy} style={{ color: C.crimson, borderColor: C.crimsonDim }}>
         <LogOut size={14} /> {busy ? t("settings.loggingOut") : t("settings.logout")}
@@ -385,7 +455,7 @@ function AboutPanel() {
         </p>
       </div>
 
-      <div className="flex gap-2 items-start p-3 rounded-xl" style={{ background: "rgba(201,138,58,0.12)" }}>
+      <div className="flex gap-2 items-start p-3 rounded-xl" style={{ background: `${C.amber}1F` }}>
         <AlertTriangle size={14} color={C.amber} style={{ marginTop: 1, flexShrink: 0 }} />
         <span className="text-[12px]" style={{ color: C.amber }}>
           {t("settings.aboutDisclaimer")}
@@ -436,7 +506,7 @@ function AboutP({ children }) {
   return <p className="text-[12.5px] leading-relaxed" style={{ color: C.textDim }}>{children}</p>;
 }
 
-function CSVPanel({ itemCount, onExportCSV }) {
+function CSVPanel({ onExportCSV }) {
   const { t } = useLanguage();
   return (
     <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
@@ -447,7 +517,7 @@ function CSVPanel({ itemCount, onExportCSV }) {
       <p className="text-[12.5px] mb-3" style={{ color: C.textDim }}>
         {t("settings.csvExportDescription")}
       </p>
-      <GhostButton full onClick={onExportCSV} disabled={itemCount === 0}>
+      <GhostButton full onClick={onExportCSV}>
         <FileText size={14} /> {t("settings.exportCsvButton")}
       </GhostButton>
     </div>

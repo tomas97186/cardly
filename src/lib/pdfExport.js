@@ -1,5 +1,5 @@
 import { jsPDF } from "jspdf";
-import { euro } from "./format";
+import { money } from "./format";
 import { loadPhotoValue } from "./storage";
 
 const PAGE_W = 210, PAGE_H = 297, MARGIN = 15;
@@ -68,7 +68,7 @@ export async function buildListingsPdfDoc(sections, t) {
     doc.setFontSize(9);
     doc.setTextColor(130);
     const total = section.items.reduce((s, it) => s + (it.price || 0), 0);
-    const countLabel = t(section.items.length === 1 ? "pdfExport.itemsAndTotalOne" : "pdfExport.itemsAndTotalMany", { count: section.items.length, total: euro(total) });
+    const countLabel = t(section.items.length === 1 ? "pdfExport.itemsAndTotalOne" : "pdfExport.itemsAndTotalMany", { count: section.items.length, total: money(total) });
     doc.text(countLabel, PAGE_W - MARGIN, y + 6, { align: "right" });
     y += 12;
     doc.setDrawColor(225);
@@ -113,7 +113,7 @@ export async function buildListingsPdfDoc(sections, t) {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.setTextColor(20);
-      doc.text(euro(item.price), PAGE_W - MARGIN, y + PHOTO_SIZE / 2 + 2, { align: "right" });
+      doc.text(money(item.price), PAGE_W - MARGIN, y + PHOTO_SIZE / 2 + 2, { align: "right" });
 
       y += ROW_H;
       doc.setDrawColor(240);

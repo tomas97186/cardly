@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global chrome (scrollbar, date picker, font) lives in App.jsx's own <style> tag
-   instead of here, so it also applies to the single-file Claude Artifact build,
-   which has no index.html/index.css of its own. */
+/* Self-hosted (public/fonts/) instead of linked from fonts.googleapis.com — avoids
+   sending every visitor's IP to Google on every page load just to render text, and
+   drops a render-blocking third-party request. Both are single-file variable fonts
+   covering the whole weight range used in the app, latin subset only (the app's
+   Italian/English UI text and card data don't need Cyrillic/Greek/etc glyphs). */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/inter-latin-variable.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Oswald";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/oswald-latin-variable.woff2") format("woff2");
+}

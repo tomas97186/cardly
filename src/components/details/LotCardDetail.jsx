@@ -2,7 +2,7 @@ import { Edit2, RotateCcw, Megaphone, ShoppingBag, Tag, ExternalLink, ChevronRig
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { euro, fmtDate } from "../../lib/format";
+import { money, fmtDate } from "../../lib/format";
 import { ebaySearchUrl, cardmarketSearchUrl } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
@@ -29,7 +29,7 @@ export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1 flex-wrap">
             <Badge color={meta.color} bg={meta.bg}>{meta.label}</Badge>
-            {card.gradingCompany && <Badge color={C.info} bg="rgba(108,142,239,0.14)">{card.gradingCompany}{card.grade ? ` ${card.grade}` : ""}</Badge>}
+            {card.gradingCompany && <Badge color={C.info} bg={`${C.info}24`}>{card.gradingCompany}{card.grade ? ` ${card.grade}` : ""}</Badge>}
           </div>
           <div className="text-[12.5px] mt-1.5" style={{ color: C.textDim }}>{card.setName && <>{card.setName} · </>}{card.condition}{card.language && <> · {card.language}</>}</div>
         </div>
@@ -38,7 +38,7 @@ export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
           <div className="text-[11px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.assignedCost")}</div>
-          <div className="text-base font-bold mt-0.5" style={{ color: costKnown ? C.text : C.amber }}>{costKnown ? euro(card.assignedCost) : t("common.notSpecified")}</div>
+          <div className="text-base font-bold mt-0.5" style={{ color: costKnown ? C.text : C.amber }}>{costKnown ? money(card.assignedCost) : t("common.notSpecified")}</div>
         </div>
         <div className="p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
           <div className="text-[11px] uppercase tracking-widest" style={{ color: C.textFaint }}>{t("details.status")}</div>
@@ -52,12 +52,12 @@ export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale
       </div>
 
       {card.status === "listed" && card.listing && (
-        <div className="p-3 rounded-xl mb-4" style={{ background: "rgba(108,142,239,0.1)", border: `1px solid ${C.infoDim}` }}>
+        <div className="p-3 rounded-xl mb-4" style={{ background: `${C.info}1A`, border: `1px solid ${C.infoDim}` }}>
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] uppercase tracking-widest" style={{ color: C.info }}>{t("details.listedEyebrow")}</span>
             <button onClick={onEditListing} style={{ color: C.info }}><Edit2 size={13} /></button>
           </div>
-          <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.askingPrice")}</span><span className="font-semibold">{euro(card.listing.price)}</span></div>
+          <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.askingPrice")}</span><span className="font-semibold">{money(card.listing.price)}</span></div>
           {card.listing.platform && <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.platform")}</span><span>{card.listing.platform}</span></div>}
           <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.listedOn")}</span><span>{fmtDate(card.listing.listedDate)}</span></div>
           {card.listing.link && (
@@ -69,22 +69,22 @@ export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale
       )}
 
       {card.status === "sold" && card.sale && isGroupSale && (
-        <button onClick={onOpenGroup} className="w-full text-left p-3 rounded-xl mb-4" style={{ background: "rgba(63,179,155,0.1)", border: `1px solid ${C.tealDim}` }}>
+        <button onClick={onOpenGroup} className="w-full text-left p-3 rounded-xl mb-4" style={{ background: `${C.teal}1A`, border: `1px solid ${C.tealDim}` }}>
           <div className="flex items-center justify-between mb-1">
             <span className="text-[11px] uppercase tracking-widest" style={{ color: C.teal }}>{t("details.soldInBulk")}</span>
             <ChevronRight size={14} color={C.teal} />
           </div>
           <div className="text-[13.5px]" style={{ color: C.text }}>
-            {t(card.sale.groupSize - 1 === 1 ? "details.groupedWithOne" : "details.groupedWithMany", { count: card.sale.groupSize - 1, total: euro(card.sale.groupTotal), date: fmtDate(card.sale.date) })}
+            {t(card.sale.groupSize - 1 === 1 ? "details.groupedWithOne" : "details.groupedWithMany", { count: card.sale.groupSize - 1, total: money(card.sale.groupTotal), date: fmtDate(card.sale.date) })}
           </div>
           <div className="text-[12px] mt-1" style={{ color: C.textDim }}>{t("details.tapForGroupDetail")}</div>
         </button>
       )}
 
       {card.status === "sold" && card.sale && !isGroupSale && (
-        <div className="p-3 rounded-xl mb-4" style={{ background: "rgba(63,179,155,0.1)", border: `1px solid ${C.tealDim}` }}>
+        <div className="p-3 rounded-xl mb-4" style={{ background: `${C.teal}1A`, border: `1px solid ${C.tealDim}` }}>
           <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.soldOn")}</span><span>{fmtDate(card.sale.date)}</span></div>
-          <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.price")}</span><span>{euro(card.sale.price)}</span></div>
+          <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.price")}</span><span>{money(card.sale.price)}</span></div>
           {card.sale.buyer && <div className="flex justify-between text-[13.5px] mb-1"><span style={{ color: C.textDim }}>{t("details.buyer")}</span><span>{card.sale.buyer}</span></div>}
           {(card.sale.carrier || card.sale.tracking) && (
             <div className="flex justify-between text-[13.5px] mb-1">
@@ -95,7 +95,7 @@ export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale
           <div className="flex justify-between text-[13.5px] font-bold pt-1 mt-1" style={{ borderTop: `1px solid ${C.tealDim}` }}>
             <span>{t("details.margin")}</span>
             <span style={{ color: margin === null ? C.amber : margin >= 0 ? C.teal : C.crimson }}>
-              {margin === null ? t("details.costUnknown") : `${margin >= 0 ? "+" : ""}${euro(margin)}`}
+              {margin === null ? t("details.costUnknown") : `${margin >= 0 ? "+" : ""}${money(margin)}`}
             </span>
           </div>
         </div>

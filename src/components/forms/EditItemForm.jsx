@@ -4,6 +4,7 @@ import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { loadPhotoValues } from "../../lib/storage";
+import { currentCurrencySymbol } from "../../lib/format";
 import { Field } from "../ui/Field";
 import { TextInput, Select, TextArea } from "../ui/Inputs";
 import { PhotoPicker } from "../ui/Photo";
@@ -78,7 +79,7 @@ export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
       <Field label={t("forms.cardLanguage")}><Select value={language} onChange={(e) => setLanguage(e.target.value)}>{LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}</Select></Field>
       <GradingFields graded={graded} setGraded={setGraded} gradingCompany={gradingCompany} setGradingCompany={setGradingCompany} grade={grade} setGrade={setGrade} />
       <div className="grid grid-cols-2 gap-3">
-        <Field label={t("forms.cost")} hint={t("forms.costHint")}><TextInput type="number" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder={t("common.notSpecified")} /></Field>
+        <Field label={t("forms.cost", { symbol: currentCurrencySymbol() })} hint={t("forms.costHint")}><TextInput type="number" step="0.01" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} placeholder={t("common.notSpecified")} /></Field>
         <Field label={t("common.purchaseDate")}><TextInput type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} /></Field>
       </div>
       <Field label={t("common.source")}><TextInput value={source} onChange={(e) => setSource(e.target.value)} /></Field>

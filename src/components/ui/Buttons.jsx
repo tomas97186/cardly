@@ -5,7 +5,7 @@ export function PrimaryButton({ children, onClick, type = "button", full, style,
     <button
       type={type} onClick={onClick} disabled={disabled}
       style={{
-        background: disabled ? C.textFaint : C.gold, color: "#181305", fontWeight: 700,
+        background: disabled ? C.textFaint : C.gold, color: C.goldText, fontWeight: 700,
         border: "none", borderRadius: "10px", padding: "11px 18px", width: full ? "100%" : "auto",
         opacity: disabled ? 0.6 : 1, cursor: disabled ? "not-allowed" : "pointer", ...style,
       }}

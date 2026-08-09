@@ -2,23 +2,26 @@ import { useState, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 import { Camera, ImageOff, X, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { C } from "../../lib/theme";
-import { loadPhotoValue, loadPhotoValues } from "../../lib/storage";
+import { loadPhotoValue, loadThumbValue, loadPhotoValues } from "../../lib/storage";
 import { resizeImage } from "../../lib/image";
 import { useLanguage } from "../../context/LanguageContext";
 
 // `photoKeys`, when passed, makes the thumb clickable and opens the full-screen
 // lightbox over the whole set (starting at index 0) — used for cover thumbnails in
 // detail views, which sit outside PhotoGallery's own strip-of-the-rest layout.
-export function PhotoThumb({ photoKey, photoKeys, fileNamePrefix, size = "100%", rounded = "12px", iconSize = 20 }) {
+// `preferThumb` loads the small companion thumbnail instead of the full-size cover —
+// only meaningful for the non-clickable, single-`photoKey` case (list rows), since
+// only the first photo of an item ever gets a thumbnail generated (see storage.js).
+export function PhotoThumb({ photoKey, photoKeys, fileNamePrefix, size = "100%", rounded = "12px", iconSize = 20, preferThumb = false }) {
   const [src, setSrc] = useState(null);
   const [lightboxUrls, setLightboxUrls] = useState(null);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   useEffect(() => {
     let active = true;
     setSrc(null);
-    if (photoKey) loadPhotoValue(photoKey).then((v) => { if (active) setSrc(v); });
+    if (photoKey) (preferThumb ? loadThumbValue(photoKey) : loadPhotoValue(photoKey)).then((v) => { if (active) setSrc(v); });
     return () => { active = false; };
-  }, [photoKey]);
+  }, [photoKey, preferThumb]);
 
   const clickable = !!(photoKeys && photoKeys.length);
   async function handleClick() {
@@ -34,7 +37,7 @@ export function PhotoThumb({ photoKey, photoKeys, fileNamePrefix, size = "100%",
         onClick={clickable ? handleClick : undefined}
         style={{ width: size, height: size, borderRadius: rounded, background: C.surfaceAlt, border: `1px solid ${C.border}`, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: clickable ? "pointer" : undefined }}
       >
-        {src ? <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <ImageOff size={iconSize} color={C.textFaint} />}
+        {src ? <img src={src} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <ImageOff size={iconSize} color={C.textFaint} />}
       </div>
       {lightboxIndex !== null && lightboxUrls && (
         <Lightbox urls={lightboxUrls} index={lightboxIndex} onNavigate={setLightboxIndex} onClose={() => setLightboxIndex(null)} fileNamePrefix={fileNamePrefix} />
@@ -46,7 +49,7 @@ export function PhotoThumb({ photoKey, photoKeys, fileNamePrefix, size = "100%",
 // ---------- Multi-photo picker used in forms: `value` is an array of data URLs
 // (existing photos already loaded, plus any newly added ones); the first photo is
 // the cover shown everywhere else in the app. ----------
-export function PhotoPicker({ value, onChange, max = 6 }) {
+export function PhotoPicker({ value, onChange, max = 3 }) {
   const { t } = useLanguage();
   const inputId = useId();
   const canAddMore = value.length < max;
@@ -68,7 +71,7 @@ export function PhotoPicker({ value, onChange, max = 6 }) {
     <div>
       <div className="flex flex-wrap gap-2">
         {value.map((url, idx) => (
-          <div key={url} style={{ position: "relative", width: 72, height: 72, borderRadius: 12, overflow: "hidden", flexShrink: 0 }}>
+          <div key={idx} style={{ position: "relative", width: 72, height: 72, borderRadius: 12, overflow: "hidden", flexShrink: 0 }}>
             <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             {idx === 0 && value.length > 1 && (
               <span style={{ position: "absolute", left: 3, bottom: 3, background: "rgba(6,7,12,0.72)", color: C.gold, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -146,7 +149,7 @@ export function PhotoGallery({ photoKeys, fileNamePrefix, size = 72 }) {
           const idx = i + 1;
           return (
             <button key={idx} onClick={() => setLightboxIndex(idx)} style={{ width: size, height: size, borderRadius: 10, overflow: "hidden", flexShrink: 0, border: `1px solid ${C.border}` }}>
-              <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <img src={url} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </button>
           );
         })}

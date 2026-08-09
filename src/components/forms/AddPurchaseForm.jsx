@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { C, CONDITION_OPTIONS, CATEGORY_OPTIONS, LANGUAGE_OPTIONS } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
-import { todayISO } from "../../lib/format";
+import { todayISO, currentCurrencySymbol } from "../../lib/format";
 import { Field } from "../ui/Field";
 import { TextInput, Select, TextArea } from "../ui/Inputs";
 import { PhotoPicker } from "../ui/Photo";
@@ -57,7 +57,7 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
       <div className="flex gap-2 mb-5 p-1 rounded-xl" style={{ background: C.surfaceAlt }}>
         {[["singola", t("forms.singleCard")], ["lotto", t("forms.lot")]].map(([val, label]) => (
           <button key={val} onClick={() => setPurchaseType(val)} className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors"
-            style={{ background: purchaseType === val ? C.gold : "transparent", color: purchaseType === val ? "#181305" : C.textDim }}>
+            style={{ background: purchaseType === val ? C.gold : "transparent", color: purchaseType === val ? C.goldText : C.textDim }}>
             {label}
           </button>
         ))}
@@ -103,7 +103,7 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label={purchaseType === "singola" ? t("forms.pricePaid") : t("forms.lotTotalPrice")}>
+        <Field label={purchaseType === "singola" ? t("forms.pricePaid", { symbol: currentCurrencySymbol() }) : t("forms.lotTotalPrice", { symbol: currentCurrencySymbol() })}>
           <TextInput type="number" step="0.01" min="0" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" />
         </Field>
         <Field label={t("common.purchaseDate")}><TextInput type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} /></Field>
