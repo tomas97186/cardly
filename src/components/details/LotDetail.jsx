@@ -6,6 +6,7 @@ import { money, fmtDate } from "../../lib/format";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
 import { PhotoThumb, PhotoGallery } from "../ui/Photo";
+import { BoxLocationRow } from "../ui/BoxLocationRow";
 
 // ---------- Lot detail (container view) ----------
 export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
@@ -47,6 +48,11 @@ export function LotDetail({ lot, onClose, onEditLot, onAddCard, onOpenCard }) {
         </div>
       </div>
 
+      {lot.boxId && (
+        <div className="space-y-1.5 mb-4 text-[13.5px]" style={{ color: C.textDim }}>
+          <BoxLocationRow boxId={lot.boxId} />
+        </div>
+      )}
       {lot.purchaseNotes && <p className="text-[13px] mb-4" style={{ color: C.textDim }}>{lot.purchaseNotes}</p>}
 
       <h4 className="text-[12px] uppercase tracking-widest mb-2" style={{ color: C.textFaint }}>

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
-  Package, Plus, Search, LayoutGrid, ShoppingBag, Megaphone,
-  Settings as SettingsIcon,
+  Package, Plus, Search, LayoutGrid, ShoppingBag, Megaphone, User,
 } from "lucide-react";
 
 import { useAuth } from "./hooks/useAuth";
@@ -12,12 +11,16 @@ import { CatalogProvider, useCatalog } from "./context/CatalogContext";
 import { LanguageProvider, useLanguage } from "./context/LanguageContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { CurrencyProvider } from "./context/CurrencyContext";
+import { EbayMarketProvider } from "./context/EbayMarketContext";
+import { EntitlementProvider, useEntitlement } from "./context/EntitlementContext";
 import { C } from "./lib/theme";
+import { FREE_TIER_ITEM_LIMIT } from "./lib/appConfig";
 import { uid, todayISO, cardDisplayName } from "./lib/format";
 import { getPeriodRange, makeInRange } from "./lib/period";
 import { buildAllSaleUnits } from "./lib/saleUnits";
 import {
   loadFinancialSummary, loadRecentSales, loadItemById, loadLotWithCards, loadGroupSaleDetail,
+  loadCataloguedCardCount,
   savePhotos, deletePhotoKeys,
   upsertItem, upsertLot, upsertLotCard,
   sellItemRecord, cancelItemSaleRecord, listItemRecord, unlistItemRecord,
@@ -25,8 +28,10 @@ import {
   cancelGroupSaleRecord, upsertSaleRecord, updateItemFields, updateLotCardFields,
   deleteItemRecord, deleteLotRecord, deleteLotCardRecord,
   exportInventoryFull, loadListingsForExport,
+  upsertBox,
 } from "./lib/storage";
 import { exportInventoryCSV } from "./lib/csv";
+import { generateBoxCode } from "./lib/boxQr";
 
 import { Modal } from "./components/ui/Modal";
 import { AddPurchaseForm } from "./components/forms/AddPurchaseForm";
@@ -42,8 +47,11 @@ import { LotCardDetail } from "./components/details/LotCardDetail";
 import { GroupSaleDetail } from "./components/details/GroupSaleDetail";
 import { LotDetail } from "./components/details/LotDetail";
 import { GlobalSearchModal } from "./components/search/GlobalSearchModal";
+import { PremiumWelcomeModal } from "./components/PremiumWelcomeModal";
 import { DashboardSection } from "./components/sections/DashboardSection";
 import { InventorySection } from "./components/sections/InventorySection";
+import { BoxesSection } from "./components/sections/BoxesSection";
+import { NewBoxForm } from "./components/forms/NewBoxForm";
 import { ListingsSection } from "./components/sections/ListingsSection";
 import { SalesSection } from "./components/sections/SalesSection";
 import { SettingsSection } from "./components/sections/SettingsSection";
@@ -58,16 +66,18 @@ const NAV_ITEMS = [
   ["inventory", "nav.inventory", Package],
   ["listings", "nav.listings", Megaphone],
   ["sales", "nav.sales", ShoppingBag],
-  ["settings", "nav.settings", SettingsIcon],
+  ["settings", "nav.settings", User],
 ];
 
 export default function App() {
   return (
     <ThemeProvider>
       <CurrencyProvider>
-        <LanguageProvider>
-          <AppGate />
-        </LanguageProvider>
+        <EbayMarketProvider>
+          <LanguageProvider>
+            <AppGate />
+          </LanguageProvider>
+        </EbayMarketProvider>
       </CurrencyProvider>
     </ThemeProvider>
   );
@@ -89,7 +99,9 @@ function AppGate() {
   }
   return (
     <CatalogProvider>
-      <AppInner auth={auth} />
+      <EntitlementProvider>
+        <AppInner auth={auth} />
+      </EntitlementProvider>
     </CatalogProvider>
   );
 }
@@ -97,6 +109,7 @@ function AppGate() {
 function AppInner({ auth }) {
   const catalog = useCatalog();
   const { t } = useLanguage();
+  const { isPremium } = useEntitlement();
 
   const [view, setView] = useState("dashboard");
   // Bumped after every write — every fetch effect (financial summary, recent sales,
@@ -114,7 +127,23 @@ function AppInner({ auth }) {
 
   const [showGlobalSearch, setShowGlobalSearch] = useState(false);
 
+  // Stripe rimanda qui con ?checkout=success dopo un pagamento riuscito (vedi
+  // supabase/functions/create-checkout-session) — ripulisce subito l'URL così
+  // un refresh/back non ri-mostra il modale.
+  const [showPremiumWelcome, setShowPremiumWelcome] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("checkout") === "success") {
+      window.history.replaceState(null, "", window.location.pathname);
+      setShowPremiumWelcome(true);
+    }
+  }, []);
+
+  // Sotto-tab della sezione Inventario, solo Premium (le Scatole sono una loro
+  // funzione) — i Free vedono sempre e solo "items", niente switcher visibile.
+  const [inventoryTab, setInventoryTab] = useState("items"); // "items" | "boxes"
+
   const [showAdd, setShowAdd] = useState(false);
+  const [showNewBox, setShowNewBox] = useState(false);
   const [detailItemId, setDetailItemId] = useState(null); // singola
   const [editItemId, setEditItemId] = useState(null);
   const [sellItemId, setSellItemId] = useState(null);
@@ -141,6 +170,7 @@ function AppInner({ auth }) {
     (view !== "dashboard" ? 1 : 0) +
     (showGlobalSearch ? 1 : 0) +
     (showAdd ? 1 : 0) +
+    (showNewBox ? 1 : 0) +
     (detailItemId ? 1 : 0) +
     (editItemId || sellItemId || listingItemId ? 1 : 0) +
     (detailLotId ? 1 : 0) +
@@ -167,6 +197,7 @@ function AppInner({ auth }) {
     if (showExportPdf) return setShowExportPdf(false);
     if (showBulkSale) return setShowBulkSale(false);
     if (showAdd) return setShowAdd(false);
+    if (showNewBox) return setShowNewBox(false);
     if (showGlobalSearch) return setShowGlobalSearch(false);
     if (view !== "dashboard") return setView("dashboard");
   }
@@ -222,6 +253,9 @@ function AppInner({ auth }) {
   // ---- singola item handlers ----
   async function handleAddPurchase(form) {
     if (form.purchaseType === "singola") {
+      if (!isPremium && (await loadCataloguedCardCount()) >= FREE_TIER_ITEM_LIMIT) {
+        return { error: t("forms.freeTierLimitReached", { limit: FREE_TIER_ITEM_LIMIT }) };
+      }
       const id = uid();
       const photoKeys = form.photos && form.photos.length ? await savePhotos(`photo:${id}`, form.photos) : [];
       await upsertItem({
@@ -229,7 +263,7 @@ function AppInner({ auth }) {
         cardNumber: form.cardNumber, condition: form.condition, category: form.category, language: form.language,
         gradingCompany: form.gradingCompany || null, grade: form.grade || null,
         unitCost: parseFloat(form.price) || 0, purchaseDate: form.purchaseDate, source: form.source,
-        purchaseNotes: form.notes, photoKeys, status: "in_stock", sale: null, createdAt: Date.now(),
+        purchaseNotes: form.notes, photoKeys, boxId: form.boxId || null, status: "in_stock", sale: null, createdAt: Date.now(),
       });
     } else {
       const id = uid();
@@ -238,11 +272,18 @@ function AppInner({ auth }) {
         id, kind: "lotto", lotName: form.lotName.trim(), game: form.game,
         totalCost: parseFloat(form.price) || 0, quantity: Math.max(1, parseInt(form.quantity) || 1),
         purchaseDate: form.purchaseDate, source: form.source, purchaseNotes: form.notes,
-        photoKeys, createdAt: Date.now(),
+        photoKeys, boxId: form.boxId || null, createdAt: Date.now(),
       });
     }
     bumpDataVersion();
     setShowAdd(false);
+  }
+
+  async function handleAddBox(label) {
+    const { error } = await upsertBox({ id: uid(), code: generateBoxCode(), label });
+    if (error) return { error: t("boxes.createError") };
+    bumpDataVersion();
+    setShowNewBox(false);
   }
 
   async function handleUpdateItem(id, changes) {
@@ -303,13 +344,16 @@ function AppInner({ auth }) {
   }
 
   async function handleAddLotCard(lotId, form) {
+    if (!isPremium && (await loadCataloguedCardCount()) >= FREE_TIER_ITEM_LIMIT) {
+      return { error: t("forms.freeTierLimitReached", { limit: FREE_TIER_ITEM_LIMIT }) };
+    }
     const cardId = uid();
     const photoKeys = form.photos && form.photos.length ? await savePhotos(`photo:${cardId}`, form.photos) : [];
     await upsertLotCard({
       id: cardId, name: form.name || `Carta ${(addCardLot?.cards.length || 0) + 1}`,
       game: form.game, setName: form.setName, cardNumber: form.cardNumber, condition: form.condition,
       category: form.category, language: form.language, gradingCompany: form.gradingCompany || null, grade: form.grade || null,
-      assignedCost: form.assignedCost, photoKeys, status: "in_stock", sale: null, createdAt: Date.now(),
+      assignedCost: form.assignedCost, photoKeys, boxId: form.boxId || null, status: "in_stock", sale: null, createdAt: Date.now(),
     }, lotId);
     bumpDataVersion();
     setAddCardLotId(null);
@@ -537,6 +581,14 @@ function AppInner({ auth }) {
         @media (prefers-reduced-motion: reduce) {
           .anim-fade-in, .anim-scale-in, .anim-slide-up { animation: none; }
         }
+
+        /* Stampa l'etichetta QR di una scatola da sola — usato da BoxDetailPage
+           (Inventario > Scatole), non dal resto dell'app. */
+        @media print {
+          body * { visibility: hidden; }
+          #box-qr-print, #box-qr-print * { visibility: visible; }
+          #box-qr-print { position: fixed; top: 40px; left: 0; right: 0; }
+        }
       `}</style>
 
       {/* ---- Desktop sidebar (hidden below the lg breakpoint, where the bottom tab bar takes over) ---- */}
@@ -583,10 +635,33 @@ function AppInner({ auth }) {
             />
           )
         ) : view === "inventory" ? (
-          <InventorySection
-            games={catalog.games} dataVersion={dataVersion}
-            onOpenItem={(id) => setDetailItemId(id)} onOpenLot={(id) => setDetailLotId(id)}
-          />
+          <>
+            {isPremium && (
+              <div className="flex gap-2 mb-4 p-1 rounded-xl" style={{ background: C.surfaceAlt, maxWidth: 280 }}>
+                {[["items", t("boxes.itemsTab")], ["boxes", t("boxes.boxesTab")]].map(([val, label]) => (
+                  <button
+                    key={val} onClick={() => setInventoryTab(val)}
+                    className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors"
+                    style={{ background: inventoryTab === val ? C.gold : "transparent", color: inventoryTab === val ? C.goldText : C.textDim }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {inventoryTab === "boxes" && isPremium ? (
+              <BoxesSection
+                dataVersion={dataVersion}
+                onOpenItem={(id) => setDetailItemId(id)} onOpenLot={(id) => setDetailLotId(id)}
+                onOpenLotCard={(lotId, cardId) => setDetailLotCard({ lotId, cardId })}
+              />
+            ) : (
+              <InventorySection
+                games={catalog.games} dataVersion={dataVersion}
+                onOpenItem={(id) => setDetailItemId(id)} onOpenLot={(id) => setDetailLotId(id)}
+              />
+            )}
+          </>
         ) : view === "listings" ? (
           <ListingsSection
             dataVersion={dataVersion}
@@ -613,7 +688,10 @@ function AppInner({ auth }) {
       </div>
 
       {view === "inventory" && (
-        <button onClick={() => setShowAdd(true)} style={{ background: C.gold, color: C.goldText }} className="absolute right-5 bottom-[84px] lg:bottom-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30">
+        <button
+          onClick={() => (inventoryTab === "boxes" && isPremium ? setShowNewBox(true) : setShowAdd(true))}
+          style={{ background: C.gold, color: C.goldText }} className="absolute right-5 bottom-[84px] lg:bottom-6 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30"
+        >
           <Plus size={24} />
         </button>
       )}
@@ -632,6 +710,7 @@ function AppInner({ auth }) {
       </div>
 
       {/* ---- Modals ---- */}
+      {showPremiumWelcome && <PremiumWelcomeModal onClose={() => setShowPremiumWelcome(false)} />}
       {showGlobalSearch && (
         <GlobalSearchModal
           onClose={() => setShowGlobalSearch(false)}
@@ -643,6 +722,11 @@ function AppInner({ auth }) {
       {showAdd && (
         <Modal title={t("app.newPurchase")} onClose={() => setShowAdd(false)} wide>
           <AddPurchaseForm onCancel={() => setShowAdd(false)} onSubmit={handleAddPurchase} />
+        </Modal>
+      )}
+      {showNewBox && (
+        <Modal title={t("boxes.newBox")} onClose={() => setShowNewBox(false)}>
+          <NewBoxForm onCancel={() => setShowNewBox(false)} onSubmit={handleAddBox} />
         </Modal>
       )}
 

@@ -2,17 +2,20 @@ import { Edit2, RotateCcw, Megaphone, ShoppingBag, Tag, ExternalLink, ChevronRig
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
+import { useEbayMarket } from "../../context/EbayMarketContext";
 import { money, fmtDate } from "../../lib/format";
 import { ebaySearchUrl, cardmarketSearchUrl } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
 import { PhotoThumb, PhotoGallery } from "../ui/Photo";
+import { BoxLocationRow } from "../ui/BoxLocationRow";
 import { GhostButton, GhostLinkButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Detail modal for a single top-level card ----------
 export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList, onEditListing, onUnlist, onOpenGroup }) {
   const { GAME_META } = useCatalog();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const { ebayMarket } = useEbayMarket();
   const meta = GAME_META[item.game] || GAME_META.altro;
   const costKnown = item.unitCost != null;
   const isGroupSale = !!(item.sale && item.sale.groupId);
@@ -49,12 +52,13 @@ export function ItemDetail({ item, onClose, onEdit, onSell, onCancelSale, onList
         {item.cardNumber && <div className="flex justify-between"><span>{t("details.cardNumber")}</span><span style={{ color: C.text }}>{item.cardNumber}</span></div>}
         <div className="flex justify-between"><span>{t("common.purchaseDate")}</span><span style={{ color: C.text }}>{fmtDate(item.purchaseDate)}</span></div>
         {item.source && <div className="flex justify-between"><span>{t("details.source")}</span><span style={{ color: C.text }}>{item.source}</span></div>}
+        <BoxLocationRow boxId={item.boxId} />
         {item.purchaseNotes && <div className="pt-1" style={{ color: C.text }}>{item.purchaseNotes}</div>}
       </div>
 
       <div className="flex gap-3 mb-4">
-        <GhostLinkButton full href={cardmarketSearchUrl(item.name, item.cardNumber, item.game)}><Search size={14} /> Cardmarket</GhostLinkButton>
-        <GhostLinkButton full href={ebaySearchUrl(item.name, item.cardNumber)}><Search size={14} /> eBay</GhostLinkButton>
+        <GhostLinkButton full href={cardmarketSearchUrl(item.name, item.cardNumber, item.game, lang)}><Search size={14} /> Cardmarket</GhostLinkButton>
+        <GhostLinkButton full href={ebaySearchUrl(item.name, item.cardNumber, ebayMarket)}><Search size={14} /> eBay</GhostLinkButton>
       </div>
 
       {item.status === "listed" && item.listing && (

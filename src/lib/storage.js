@@ -92,7 +92,7 @@ function rowToItem(row) {
     cardNumber: row.card_number || "", condition: row.condition, category: row.category, language: row.language || "",
     gradingCompany: row.grading_company, grade: row.grade,
     unitCost: row.unit_cost, purchaseDate: row.purchase_date, source: row.source || "",
-    purchaseNotes: row.purchase_notes || "", photoKeys: row.photo_paths || [],
+    purchaseNotes: row.purchase_notes || "", photoKeys: row.photo_paths || [], boxId: row.box_id || null,
     status: row.status, sale: rowToSale(row.sales), listing: rowToListing(row),
     createdAt: new Date(row.created_at).getTime(),
   };
@@ -103,7 +103,7 @@ function itemToRow(item) {
     card_number: item.cardNumber || null, condition: item.condition, category: item.category, language: item.language || null,
     grading_company: item.gradingCompany || null, grade: item.grade || null,
     unit_cost: item.unitCost, purchase_date: item.purchaseDate || null, source: item.source || null,
-    purchase_notes: item.purchaseNotes || null, photo_paths: item.photoKeys || [],
+    purchase_notes: item.purchaseNotes || null, photo_paths: item.photoKeys || [], box_id: item.boxId || null,
     status: item.status, sale_id: item.sale ? item.sale.id : null,
     ...listingToRow(item.listing),
   };
@@ -113,14 +113,14 @@ function rowToLot(row) {
     id: row.id, kind: "lotto", lotName: row.lot_name, game: row.game,
     totalCost: row.total_cost, quantity: row.quantity,
     purchaseDate: row.purchase_date, source: row.source || "", purchaseNotes: row.purchase_notes || "",
-    photoKeys: row.photo_paths || [], createdAt: new Date(row.created_at).getTime(), cards: [],
+    photoKeys: row.photo_paths || [], boxId: row.box_id || null, createdAt: new Date(row.created_at).getTime(), cards: [],
   };
 }
 function lotToRow(lot) {
   return {
     id: lot.id, lot_name: lot.lotName, game: lot.game, total_cost: lot.totalCost, quantity: lot.quantity,
     purchase_date: lot.purchaseDate || null, source: lot.source || null, purchase_notes: lot.purchaseNotes || null,
-    photo_paths: lot.photoKeys || [],
+    photo_paths: lot.photoKeys || [], box_id: lot.boxId || null,
   };
 }
 function rowToLotCard(row) {
@@ -128,7 +128,7 @@ function rowToLotCard(row) {
     id: row.id, name: row.name || "", game: row.game, setName: row.set_name || "",
     cardNumber: row.card_number || "", condition: row.condition, category: row.category, language: row.language || "",
     gradingCompany: row.grading_company, grade: row.grade, assignedCost: row.assigned_cost,
-    photoKeys: row.photo_paths || [], status: row.status, sale: rowToSale(row.sales), listing: rowToListing(row),
+    photoKeys: row.photo_paths || [], boxId: row.box_id || null, status: row.status, sale: rowToSale(row.sales), listing: rowToListing(row),
     createdAt: new Date(row.created_at).getTime(),
   };
 }
@@ -137,7 +137,7 @@ function lotCardToRow(card) {
     id: card.id, lot_id: card.lot_id, name: card.name || null, game: card.game || null,
     set_name: card.setName || null, card_number: card.cardNumber || null, condition: card.condition || null,
     category: card.category || null, language: card.language || null, grading_company: card.gradingCompany || null, grade: card.grade || null,
-    assigned_cost: card.assignedCost, photo_paths: card.photoKeys || [], status: card.status,
+    assigned_cost: card.assignedCost, photo_paths: card.photoKeys || [], box_id: card.boxId || null, status: card.status,
     sale_id: card.sale ? card.sale.id : null,
     ...listingToRow(card.listing),
   };
@@ -199,7 +199,7 @@ export async function searchGlobal(query, limit = 20) {
     id: row.id, type: row.type, name: row.name, cardNumber: row.card_number || "", subName: row.sub_name || "", lotId: row.lot_id,
     game: row.game, status: row.status, unitCost: row.unit_cost, assignedCost: row.assigned_cost, totalCost: row.total_cost,
     salePrice: row.sale_price, listingPrice: row.listing_price, photoKeys: row.photo_paths || [],
-    quantity: row.quantity, catalogedCount: row.cataloged_count,
+    quantity: row.quantity, catalogedCount: row.cataloged_count, boxId: row.box_id || null,
   }));
 }
 
@@ -359,6 +359,17 @@ export async function loadInventoryCount() {
   return (itemsRes.count || 0) + (lotsRes.count || 0);
 }
 
+// Carte effettivamente catalogate (singole + dentro i lotti) — la granularità che
+// conta per il limite del piano Free, diversa da loadInventoryCount() sopra: un
+// lotto da solo (senza carte ancora catalogate) non vale nulla qui.
+export async function loadCataloguedCardCount() {
+  const [itemsRes, lotCardsRes] = await Promise.all([
+    supabase.from("items").select("id", { count: "exact", head: true }),
+    supabase.from("lot_cards").select("id", { count: "exact", head: true }),
+  ]);
+  return (itemsRes.count || 0) + (lotCardsRes.count || 0);
+}
+
 // Full detail of every currently-listed card/lot-card, for the PDF price-list export
 // (Impostazioni > Esporta > Listino PDF) — fetched only when that flow starts, not
 // kept resident. Mirrors the field set the PDF actually prints (name, set, condition,
@@ -425,6 +436,7 @@ export async function loadGroupSaleDetail(saleId) {
 export async function upsertItem(item) {
   const { error } = await supabase.from("items").upsert(itemToRow(item), { onConflict: "id" });
   if (error) console.error("Errore salvataggio carta", error);
+  return { error };
 }
 export async function upsertLot(lot) {
   const { error } = await supabase.from("lots").upsert(lotToRow(lot), { onConflict: "id" });
@@ -433,6 +445,7 @@ export async function upsertLot(lot) {
 export async function upsertLotCard(card, lotId) {
   const { error } = await supabase.from("lot_cards").upsert(lotCardToRow({ ...card, lot_id: lotId }), { onConflict: "id" });
   if (error) console.error("Errore salvataggio carta del lotto", error);
+  return { error };
 }
 export async function upsertSaleRecord(sale) {
   const { error } = await supabase.from("sales").upsert(saleToRow(sale), { onConflict: "id" });
@@ -445,10 +458,12 @@ export async function upsertSaleRecord(sale) {
 export async function updateItemFields(id, patch) {
   const { error } = await supabase.from("items").update(patch).eq("id", id);
   if (error) console.error("Errore aggiornamento carta", error);
+  return { error };
 }
 export async function updateLotCardFields(id, patch) {
   const { error } = await supabase.from("lot_cards").update(patch).eq("id", id);
   if (error) console.error("Errore aggiornamento carta del lotto", error);
+  return { error };
 }
 
 export async function deleteItemRecord(id) {
@@ -713,4 +728,93 @@ export async function loadCurrencyPref() {
 }
 export async function saveCurrencyPref(currency) {
   try { await supabase.auth.updateUser({ data: { currency } }); } catch (e) { /* ignore */ }
+}
+export async function loadEbayMarketPref() {
+  try {
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.user_metadata?.ebayMarket || null;
+  } catch (e) { return null; }
+}
+export async function saveEbayMarketPref(ebayMarket) {
+  try { await supabase.auth.updateUser({ data: { ebayMarket } }); } catch (e) { /* ignore */ }
+}
+
+// ================= Entitlement (piano free/premium) =================
+// Riga di `profiles`, scritta SOLO lato server (webhook Stripe/Play con service
+// role key) — il client la legge soltanto, mai la scrive. Vedi supabase/entitlements.sql.
+export async function loadEntitlement() {
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("subscription_tier, premium_until, premium_source")
+      .maybeSingle();
+    if (error || !data) return null;
+    return { tier: data.subscription_tier, premiumUntil: data.premium_until, premiumSource: data.premium_source };
+  } catch (e) { return null; }
+}
+
+// ================= Boxes (posizione fisica, funzione Premium) =================
+// Creare una scatola o assegnarla a un item/lotto/carta è bloccato lato server per
+// il piano Free (vedi supabase/boxes.sql) — qui ci limitiamo a propagare l'errore,
+// la UI decide come mostrarlo.
+
+function rowToBox(row) {
+  return { id: row.id, code: row.code, label: row.label || "", createdAt: new Date(row.created_at).getTime() };
+}
+
+export async function loadBoxes() {
+  const { data, error } = await supabase.from("boxes").select("*").order("created_at", { ascending: true });
+  if (error) { console.error("Errore caricamento scatole", error); return []; }
+  return data.map(rowToBox);
+}
+
+export async function upsertBox(box) {
+  const { error } = await supabase.from("boxes").upsert({ id: box.id, code: box.code, label: box.label || null }, { onConflict: "id" });
+  if (error) console.error("Errore salvataggio scatola", error);
+  return { error };
+}
+
+export async function deleteBoxRecord(id) {
+  const { error } = await supabase.from("boxes").delete().eq("id", id);
+  if (error) console.error("Errore eliminazione scatola", error);
+}
+
+// Risolve un codice scansionato/digitato (es. "A1B2C3") nella scatola corrispondente
+// — scoped alla RLS dell'utente corrente, quindi non trova mai la scatola di qualcun
+// altro anche indovinando il codice.
+export async function loadBoxById(id) {
+  if (!id) return null;
+  const { data, error } = await supabase.from("boxes").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return null;
+  return rowToBox(data);
+}
+
+export async function loadBoxByCode(code) {
+  const { data, error } = await supabase.from("boxes").select("*").eq("code", code).maybeSingle();
+  if (error || !data) return null;
+  return rowToBox(data);
+}
+
+// Tutto ciò che è assegnato a una scatola — carte singole, lotti (nel loro insieme)
+// e carte dentro i lotti, per mostrare "cosa c'è qui dentro" dopo una scansione.
+export async function loadBoxContents(boxId) {
+  const [itemsRes, lotsRes, lotCardsRes] = await Promise.all([
+    supabase.from("items").select("*, sales(*)").eq("box_id", boxId),
+    supabase.from("lots").select("*").eq("box_id", boxId),
+    supabase.from("lot_cards").select("*, sales(*), lots(lot_name)").eq("box_id", boxId),
+  ]);
+  const items = (itemsRes.data || []).map(rowToItem);
+  const lots = (lotsRes.data || []).map(rowToLot);
+  const lotCards = (lotCardsRes.data || []).map((row) => ({ ...rowToLotCard(row), lotName: row.lots?.lot_name || "", lotId: row.lot_id }));
+  return { items, lots, lotCards };
+}
+
+// Assegna una scatola a carte già catalogate (trovate via searchGlobal) — usato
+// da "Aggiungi carta esistente" nel dettaglio di una scatola. `selections` è
+// `[{ type: "item"|"lotCard", id }]`, stesso `type` restituito da searchGlobal.
+export async function assignItemsToBox(boxId, selections) {
+  const results = await Promise.all(
+    selections.map((s) => (s.type === "lotCard" ? updateLotCardFields(s.id, { box_id: boxId }) : updateItemFields(s.id, { box_id: boxId })))
+  );
+  return results.find((r) => r?.error)?.error || null;
 }

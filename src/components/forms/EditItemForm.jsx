@@ -9,12 +9,15 @@ import { Field } from "../ui/Field";
 import { TextInput, Select, TextArea } from "../ui/Inputs";
 import { PhotoPicker } from "../ui/Photo";
 import { GradingFields } from "../ui/GradingFields";
+import { BoxPicker } from "../ui/BoxPicker";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 // ---------- Edit single-card item form ----------
 export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
   const { games, gradingCompanies } = useCatalog();
   const { t } = useLanguage();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [game, setGame] = useState(item.game);
   const [name, setName] = useState(item.name);
   const [setName_, setSetName] = useState(item.setName || "");
@@ -31,6 +34,7 @@ export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
   const [notes, setNotes] = useState(item.purchaseNotes || "");
   const [photos, setPhotos] = useState([]);
   const [photosLoaded, setPhotosLoaded] = useState(false);
+  const [boxId, setBoxId] = useState(item.boxId || null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
       await onSubmit({
         game, name, setName: setName_, cardNumber, condition, category, language,
         gradingCompany: graded ? gradingCompany : null, grade: graded ? grade.trim() : null,
-        unitCost: unitCost.trim() === "" ? null : parseFloat(unitCost), purchaseDate, source, purchaseNotes: notes, photos,
+        unitCost: unitCost.trim() === "" ? null : parseFloat(unitCost), purchaseDate, source, purchaseNotes: notes, photos, boxId,
       });
     } finally {
       setSaving(false);
@@ -87,11 +91,22 @@ export function EditItemForm({ item, onCancel, onSubmit, onDelete }) {
       <Field label={t("common.photos")}>
         {photosLoaded ? <PhotoPicker value={photos} onChange={setPhotos} /> : <span className="text-[12px]" style={{ color: C.textFaint }}>{t("common.loadingPhotos")}</span>}
       </Field>
+      <BoxPicker value={boxId} onChange={setBoxId} />
       <div className="flex gap-3 mt-2">
-        <GhostButton onClick={onDelete} style={{ color: C.crimson, borderColor: C.crimsonDim }}><Trash2 size={14} /> {t("common.delete")}</GhostButton>
+        <GhostButton onClick={() => setConfirmDelete(true)} style={{ color: C.crimson, borderColor: C.crimsonDim }}><Trash2 size={14} /> {t("common.delete")}</GhostButton>
         <PrimaryButton full disabled={!valid || saving} onClick={handleSubmit}>{saving ? t("common.saving") : <><Check size={16} /> {t("common.save")}</>}</PrimaryButton>
       </div>
       <button onClick={onCancel} className="w-full text-center text-[13px] mt-3" style={{ color: C.textDim }}>{t("common.cancel")}</button>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title={t("common.deleteConfirmTitle")}
+          message={t("forms.deleteItemConfirmMessage")}
+          confirmLabel={t("common.delete")}
+          onConfirm={onDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 }

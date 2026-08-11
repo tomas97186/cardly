@@ -1,42 +1,55 @@
 import { useState, useEffect } from "react";
 import {
-  User, LogOut, KeyRound, ShieldCheck, ShieldAlert, Package, Clock, Gamepad2, Tag, Plus, X, FileText,
+  LogOut, KeyRound, ShieldCheck, ShieldAlert, Package, Clock, Gamepad2, Tag, Plus, X, FileText,
   ChevronRight, ChevronLeft, Award, Info, AlertTriangle, Scale, FileCheck, Code2, Mail, Languages, Check,
-  SunMedium, Moon, Coins,
+  SunMedium, Moon, Coins, Crown, Cog, Search,
 } from "lucide-react";
 import { C } from "../../lib/theme";
 import { fmtDate, CURRENCY_OPTIONS } from "../../lib/format";
-import { SUPPORT_EMAIL } from "../../lib/appConfig";
+import { SUPPORT_EMAIL, FREE_TIER_ITEM_LIMIT, FREE_TIER_PHOTO_LIMIT, PREMIUM_PHOTO_LIMIT, FREE_PHOTO_RESIZE, PREMIUM_PHOTO_RESIZE, PHOTO_DOWNGRADE_GRACE_DAYS } from "../../lib/appConfig";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useCurrency } from "../../context/CurrencyContext";
-import { loadInventoryCount } from "../../lib/storage";
+import { useEntitlement } from "../../context/EntitlementContext";
+import { useEbayMarket } from "../../context/EbayMarketContext";
+import { loadInventoryCount, loadCataloguedCardCount } from "../../lib/storage";
+import { startCheckout, openBillingPortal } from "../../lib/stripe";
+import { EBAY_MARKET_OPTIONS } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
 import { Field } from "../ui/Field";
 import { TextInput } from "../ui/Inputs";
 import { Badge } from "../ui/Badge";
+import { Switch } from "../ui/Switch";
 
 const APP_VERSION = "1.0.0";
 
-// ---------- Settings home: a menu of categories instead of every option stacked on
-// one page, so it stays manageable as more settings are added. ----------
+// ---------- Home of this tab is the Account itself (profile, plan, logout) —
+// everything else (catalog, language, theme, export, about) lives one tap away
+// behind a single "Impostazioni" entry, since it's set-and-forget stuff people
+// reach far less often than their own account. ----------
 export function SettingsSection({ auth, catalog, onExportCSV }) {
   const { t, lang } = useLanguage();
-  const { mode } = useTheme();
   const { currency } = useCurrency();
-  const [panel, setPanel] = useState(null); // null (menu) | "account" | "catalog" | "data" | "language" | "theme" | "about"
+  const { isPremium } = useEntitlement();
+  const [panel, setPanel] = useState(null); // null (account, home) | "more" | "catalog" | "data" | "language" | "about"
 
-  if (panel === "account") {
+  if (panel === "more") {
     return (
-      <SettingsPanel title={t("settings.account")} onBack={() => setPanel(null)}>
-        <AccountPanel auth={auth} />
+      <SettingsPanel title={t("settings.title")} backLabel={t("settings.account")} onBack={() => setPanel(null)}>
+        <div className="space-y-2">
+          <SettingsMenuItem icon={Gamepad2} title={t("settings.catalog")} subtitle={t("settings.catalogSubtitle", { games: catalog.games.length, platforms: catalog.platforms.length, grading: catalog.gradingCompanies.length })} onClick={() => setPanel("catalog")} />
+          <SettingsMenuItem icon={Languages} title={t("settings.languageAndCurrency")} subtitle={`${lang === "en" ? t("settings.langEnglish") : t("settings.langItalian")} · ${currency}`} onClick={() => setPanel("language")} />
+          <ThemeMenuItem />
+          <SettingsMenuItem icon={FileText} title={t("settings.csvExport")} subtitle={t("settings.csvExportSubtitle")} onClick={() => setPanel("data")} />
+          <SettingsMenuItem icon={Info} title={t("settings.about")} subtitle={t("settings.aboutSubtitle")} onClick={() => setPanel("about")} />
+        </div>
       </SettingsPanel>
     );
   }
   if (panel === "catalog") {
     return (
-      <SettingsPanel title={t("settings.catalog")} onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.catalog")} onBack={() => setPanel("more")}>
         <GamesEditor catalog={catalog} />
         <PlatformsEditor catalog={catalog} />
         <GradingCompaniesEditor catalog={catalog} />
@@ -45,50 +58,31 @@ export function SettingsSection({ auth, catalog, onExportCSV }) {
   }
   if (panel === "data") {
     return (
-      <SettingsPanel title={t("settings.csvExport")} onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.csvExport")} onBack={() => setPanel("more")}>
         <CSVPanel onExportCSV={onExportCSV} />
       </SettingsPanel>
     );
   }
   if (panel === "language") {
     return (
-      <SettingsPanel title={t("settings.languageAndCurrency")} onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.languageAndCurrency")} onBack={() => setPanel("more")}>
         <LanguagePanel />
         <CurrencyPanel />
-      </SettingsPanel>
-    );
-  }
-  if (panel === "theme") {
-    return (
-      <SettingsPanel title={t("settings.theme")} onBack={() => setPanel(null)}>
-        <ThemePanel />
+        <EbayMarketPanel />
       </SettingsPanel>
     );
   }
   if (panel === "about") {
     return (
-      <SettingsPanel title={t("settings.about")} onBack={() => setPanel(null)}>
+      <SettingsPanel title={t("settings.about")} onBack={() => setPanel("more")}>
         <AboutPanel />
       </SettingsPanel>
     );
   }
 
   return (
-    <div>
-      <h3 className="text-sm font-semibold mb-3" style={{ color: C.textDim }}>{t("settings.title")}</h3>
-      <div className="space-y-2">
-        <SettingsMenuItem
-          icon={User}
-          title={t("settings.account")}
-          subtitle={auth.user?.email || ""}
-          onClick={() => setPanel("account")}
-        />
-        <SettingsMenuItem icon={Gamepad2} title={t("settings.catalog")} subtitle={t("settings.catalogSubtitle", { games: catalog.games.length, platforms: catalog.platforms.length, grading: catalog.gradingCompanies.length })} onClick={() => setPanel("catalog")} />
-        <SettingsMenuItem icon={Languages} title={t("settings.languageAndCurrency")} subtitle={`${lang === "en" ? t("settings.langEnglish") : t("settings.langItalian")} · ${currency}`} onClick={() => setPanel("language")} />
-        <SettingsMenuItem icon={mode === "light" ? SunMedium : Moon} title={t("settings.theme")} subtitle={mode === "light" ? t("settings.themeLight") : t("settings.themeDark")} onClick={() => setPanel("theme")} />
-        <SettingsMenuItem icon={FileText} title={t("settings.csvExport")} subtitle={t("settings.csvExportSubtitle")} onClick={() => setPanel("data")} />
-        <SettingsMenuItem icon={Info} title={t("settings.about")} subtitle={t("settings.aboutSubtitle")} onClick={() => setPanel("about")} />
-      </div>
+    <div className="space-y-3">
+      <AccountPanel auth={auth} onOpenSettings={() => setPanel("more")} />
     </div>
   );
 }
@@ -108,12 +102,12 @@ function SettingsMenuItem({ icon: Icon, title, subtitle, onClick }) {
   );
 }
 
-function SettingsPanel({ title, onBack, children }) {
+function SettingsPanel({ title, onBack, backLabel, children }) {
   const { t } = useLanguage();
   return (
     <div>
       <button onClick={onBack} className="flex items-center gap-1 mb-3 text-[12.5px]" style={{ color: C.textDim }}>
-        <ChevronLeft size={15} /> {t("settings.title")}
+        <ChevronLeft size={15} /> {backLabel || t("settings.title")}
       </button>
       <h3 className="text-sm font-semibold mb-3">{title}</h3>
       <div className="space-y-3">{children}</div>
@@ -146,32 +140,20 @@ function LanguagePanel() {
   );
 }
 
-function ThemePanel() {
+function ThemeMenuItem() {
   const { t } = useLanguage();
   const { mode, setMode } = useTheme();
-  const options = [
-    ["dark", t("settings.themeDark"), Moon],
-    ["light", t("settings.themeLight"), SunMedium],
-  ];
+  const isDark = mode === "dark";
   return (
-    <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-      <div className="flex items-center gap-2 mb-3">
-        <SunMedium size={16} color={C.gold} />
-        <span className="text-sm font-semibold">{t("settings.theme")}</span>
+    <div className="w-full flex items-center gap-3 p-4 rounded-2xl text-left" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <div style={{ width: 36, height: 36, borderRadius: 10, background: C.surfaceAlt, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        {isDark ? <Moon size={17} color={C.gold} /> : <SunMedium size={17} color={C.gold} />}
       </div>
-      <div className="space-y-2">
-        {options.map(([val, label, Icon]) => (
-          <button
-            key={val} onClick={() => setMode(val)}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px]"
-            style={{ background: mode === val ? C.surfaceAlt : "transparent", border: `1px solid ${mode === val ? C.gold : C.border}`, color: mode === val ? C.gold : C.text }}
-          >
-            <Icon size={15} />
-            <span className="flex-1 text-left">{label}</span>
-            {mode === val && <Check size={15} color={C.gold} />}
-          </button>
-        ))}
+      <div className="flex-1 min-w-0">
+        <div className="text-[13.5px] font-medium">{t("settings.theme")}</div>
+        <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>{isDark ? t("settings.themeDark") : t("settings.themeLight")}</div>
       </div>
+      <Switch checked={isDark} onChange={(next) => setMode(next ? "dark" : "light")} ariaLabel={t("settings.theme")} />
     </div>
   );
 }
@@ -201,8 +183,163 @@ function CurrencyPanel() {
   );
 }
 
-function AccountPanel({ auth }) {
+const EBAY_MARKET_LABEL_KEYS = { it: "settings.ebayMarketIt", com: "settings.ebayMarketCom", de: "settings.ebayMarketDe", "co.uk": "settings.ebayMarketCoUk", fr: "settings.ebayMarketFr", es: "settings.ebayMarketEs" };
+
+function EbayMarketPanel() {
   const { t } = useLanguage();
+  const { ebayMarket, setEbayMarket } = useEbayMarket();
+  return (
+    <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <div className="flex items-center gap-2 mb-3">
+        <Search size={16} color={C.gold} />
+        <span className="text-sm font-semibold">{t("settings.ebayMarket")}</span>
+      </div>
+      <div className="space-y-2">
+        {EBAY_MARKET_OPTIONS.map((m) => (
+          <button
+            key={m.code} onClick={() => setEbayMarket(m.code)}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13.5px]"
+            style={{ background: ebayMarket === m.code ? C.surfaceAlt : "transparent", border: `1px solid ${ebayMarket === m.code ? C.gold : C.border}`, color: ebayMarket === m.code ? C.gold : C.text }}
+          >
+            <span className="flex-1 text-left">{t(EBAY_MARKET_LABEL_KEYS[m.code])} · {m.domain}</span>
+            {ebayMarket === m.code && <Check size={15} color={C.gold} />}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+function PlanUsageAndCompare() {
+  const { t } = useLanguage();
+  const { isPremium, premiumSource, premiumUntil } = useEntitlement();
+  const [count, setCount] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => { if (!isPremium) loadCataloguedCardCount().then(setCount); }, [isPremium]);
+
+  const pct = count == null ? 0 : Math.min(100, (count / FREE_TIER_ITEM_LIMIT) * 100);
+  const barColor = pct >= 100 ? C.crimson : pct >= 80 ? C.amber : C.teal;
+
+  async function handleUpgrade() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await startCheckout();
+    } catch (e) {
+      setError(t("settings.upgradeError"));
+      setBusy(false);
+    }
+  }
+
+  async function handleManageSubscription() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await openBillingPortal();
+    } catch (e) {
+      setError(t("settings.upgradeError"));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      {!isPremium && (
+        <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between text-[12px] mb-1.5" style={{ color: C.textDim }}>
+            <span>{t("settings.planUsageLabel")}</span>
+            <span style={{ color: barColor, fontWeight: 600 }}>
+              {count == null ? "…" : t("settings.planUsageCount", { count, limit: FREE_TIER_ITEM_LIMIT })}
+            </span>
+          </div>
+          <div style={{ height: 8, borderRadius: 999, background: C.surfaceAlt, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 999, transition: "width 0.2s ease" }} />
+          </div>
+          {pct >= 100 && (
+            <p className="text-[12px] mt-2" style={{ color: C.crimson }}>{t("settings.planUsageFull")}</p>
+          )}
+        </div>
+      )}
+
+      {isPremium && premiumUntil && (
+        <div className="p-4 rounded-2xl flex items-center justify-between" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+          <span className="text-[12px]" style={{ color: C.textDim }}>
+            {premiumSource === "stripe" ? t("settings.nextChargeLabel") : t("settings.premiumUntilLabel")}
+          </span>
+          <span className="text-[12.5px] font-semibold">{fmtDate(premiumUntil)}</span>
+        </div>
+      )}
+
+      <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+        <div className="text-sm font-semibold mb-3">{t("settings.planCompareTitle")}</div>
+        <div className="grid items-center pb-2" style={{ gridTemplateColumns: "1fr 64px 74px" }}>
+          <span />
+          <span className="text-center text-[10.5px] uppercase tracking-wide" style={{ color: C.textFaint }}>{t("settings.planFree")}</span>
+          <span className="text-center text-[10.5px] uppercase tracking-wide" style={{ color: C.gold }}>{t("settings.planPremium")}</span>
+        </div>
+        <PlanFeatureRow
+          label={t("settings.planFeatureItemLimit")}
+          free={t("settings.planFeatureItemLimitFree", { limit: FREE_TIER_ITEM_LIMIT })}
+          premium={t("settings.planFeatureItemLimitPremium")}
+        />
+        <PlanFeatureRow
+          label={t("settings.planFeaturePhotos") + ' *'}
+          free={t("settings.planFeaturePhotosFree", { limit: FREE_TIER_PHOTO_LIMIT })}
+          premium={t("settings.planFeaturePhotosPremium", { limit: PREMIUM_PHOTO_LIMIT })}
+        />
+        <PlanFeatureRow
+          label={t("settings.planFeaturePhotoQuality")}
+          free={t("settings.planFeaturePhotoQualityFree", { maxDim: FREE_PHOTO_RESIZE.maxDim })}
+          premium={t("settings.planFeaturePhotoQualityPremium", { maxDim: PREMIUM_PHOTO_RESIZE.maxDim })}
+        />
+        <PlanFeatureRow
+          label={t("boxes.planFeature")}
+          free={t("boxes.planFeatureFree")}
+          premium={t("boxes.planFeaturePremium")}
+        />
+        <p className="text-[11.5px] mt-3 leading-relaxed" style={{ color: C.textFaint }}>
+          * {t("settings.planPhotoGraceNote", { days: PHOTO_DOWNGRADE_GRACE_DAYS, limit: FREE_TIER_PHOTO_LIMIT })}
+        </p>
+      </div>
+
+      {error && (
+        <div className="text-[13px] px-3 py-2 rounded-lg" style={{ background: C.crimsonDim, color: C.text }}>
+          {error}
+        </div>
+      )}
+
+      {!isPremium && (
+        <GhostButton full disabled={busy} onClick={handleUpgrade} style={{ borderColor: C.gold, color: C.gold }}>
+          <Crown size={14} /> {busy ? t("settings.redirecting") : t("settings.upgradeButton")}
+        </GhostButton>
+      )}
+
+      {isPremium && premiumSource === "stripe" && (
+        <GhostButton full disabled={busy} onClick={handleManageSubscription}>
+          {busy ? t("settings.redirecting") : t("settings.manageSubscription")}
+        </GhostButton>
+      )}
+    </>
+  );
+}
+
+function PlanFeatureRow({ label, free, premium }) {
+  return (
+    <div className="grid items-center py-2.5 text-[12.5px]" style={{ gridTemplateColumns: "1fr 64px 74px", borderTop: `1px solid ${C.border}` }}>
+      <span style={{ color: C.textDim }}>{label}</span>
+      <span className="text-center" style={{ color: C.textFaint }}>{free}</span>
+      <span className="text-center font-semibold" style={{ color: C.gold }}>{premium}</span>
+    </div>
+  );
+}
+
+function AccountPanel({ auth, onOpenSettings }) {
+  const { t } = useLanguage();
+  const { isPremium } = useEntitlement();
   const [busy, setBusy] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [itemCount, setItemCount] = useState(null);
@@ -231,11 +368,16 @@ function AccountPanel({ auth }) {
             {memberSince && <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>{t("settings.memberSince", { date: memberSince })}</div>}
           </div>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 flex flex-wrap gap-2">
           {emailVerified ? (
             <Badge color={C.teal} bg={`${C.teal}24`}><ShieldCheck size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.emailVerified")}</Badge>
           ) : (
             <Badge color={C.amber} bg={`${C.amber}24`}><ShieldAlert size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.emailUnverified")}</Badge>
+          )}
+          {isPremium ? (
+            <Badge color={C.gold} bg={`${C.gold}24`}><Crown size={11} style={{ marginRight: 3, marginTop: -1 }} />{t("settings.planPremium")}</Badge>
+          ) : (
+            <Badge color={C.textDim} bg={C.surfaceAlt}>{t("settings.planFree")}</Badge>
           )}
         </div>
 
@@ -250,6 +392,12 @@ function AccountPanel({ auth }) {
           </div>
         </div>
       </div>
+
+      <PlanUsageAndCompare />
+
+      <GhostButton full onClick={onOpenSettings}>
+        <Cog size={14} /> {t("settings.title")}
+      </GhostButton>
 
       <GhostButton full onClick={() => setShowChangePassword(true)}>
         <KeyRound size={14} /> {t("settings.changePassword")}
@@ -455,12 +603,12 @@ function AboutPanel() {
         </p>
       </div>
 
-      <div className="flex gap-2 items-start p-3 rounded-xl" style={{ background: `${C.amber}1F` }}>
+      {/* <div className="flex gap-2 items-start p-3 rounded-xl" style={{ background: `${C.amber}1F` }}>
         <AlertTriangle size={14} color={C.amber} style={{ marginTop: 1, flexShrink: 0 }} />
         <span className="text-[12px]" style={{ color: C.amber }}>
           {t("settings.aboutDisclaimer")}
         </span>
-      </div>
+      </div> */}
 
       <AboutSection icon={Scale} title={t("settings.privacyTitle")}>
         <AboutP><b>{t("settings.privacyControllerLabel")}</b> {SUPPORT_EMAIL ? <>{t("settings.privacyControllerBodyPre")}{emailNode}{t("settings.privacyControllerBodyPost")}</> : t("settings.privacyControllerBodyNoEmail")}.</AboutP>

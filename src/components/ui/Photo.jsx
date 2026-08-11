@@ -5,6 +5,8 @@ import { C } from "../../lib/theme";
 import { loadPhotoValue, loadThumbValue, loadPhotoValues } from "../../lib/storage";
 import { resizeImage } from "../../lib/image";
 import { useLanguage } from "../../context/LanguageContext";
+import { useEntitlement } from "../../context/EntitlementContext";
+import { FREE_TIER_PHOTO_LIMIT, PREMIUM_PHOTO_LIMIT, FREE_PHOTO_RESIZE, PREMIUM_PHOTO_RESIZE } from "../../lib/appConfig";
 
 // `photoKeys`, when passed, makes the thumb clickable and opens the full-screen
 // lightbox over the whole set (starting at index 0) — used for cover thumbnails in
@@ -49,15 +51,18 @@ export function PhotoThumb({ photoKey, photoKeys, fileNamePrefix, size = "100%",
 // ---------- Multi-photo picker used in forms: `value` is an array of data URLs
 // (existing photos already loaded, plus any newly added ones); the first photo is
 // the cover shown everywhere else in the app. ----------
-export function PhotoPicker({ value, onChange, max = 3 }) {
+export function PhotoPicker({ value, onChange }) {
   const { t } = useLanguage();
+  const { isPremium } = useEntitlement();
   const inputId = useId();
+  const max = isPremium ? PREMIUM_PHOTO_LIMIT : FREE_TIER_PHOTO_LIMIT;
+  const resize = isPremium ? PREMIUM_PHOTO_RESIZE : FREE_PHOTO_RESIZE;
   const canAddMore = value.length < max;
 
   async function handleFiles(fileList) {
     const files = Array.from(fileList).slice(0, max - value.length);
     if (files.length === 0) return;
-    const newUrls = await Promise.all(files.map((f) => resizeImage(f)));
+    const newUrls = await Promise.all(files.map((f) => resizeImage(f, resize.maxDim, resize.quality)));
     // Functional update: always appends onto whatever the latest state actually is
     // when this resolves, instead of the `value` this closure happened to capture
     // (photo resizing is async, so time passes between picking files and this running).

@@ -9,13 +9,16 @@ import { Field } from "../ui/Field";
 import { TextInput, Select } from "../ui/Inputs";
 import { PhotoPicker } from "../ui/Photo";
 import { GradingFields } from "../ui/GradingFields";
+import { BoxPicker } from "../ui/BoxPicker";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 // ---------- Add / Edit a single card inside a lot (cost optional) ----------
 export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
   const { games, gradingCompanies } = useCatalog();
   const { t } = useLanguage();
   const isEdit = !!initial;
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [name, setName] = useState(initial ? initial.name : "");
   const [game, setGame] = useState(initial ? initial.game || lot.game : lot.game);
   const [setName_, setSetName] = useState(initial ? initial.setName || "" : "");
@@ -29,7 +32,9 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
   const [assignedCost, setAssignedCost] = useState(initial && initial.assignedCost != null ? String(initial.assignedCost) : "");
   const [photos, setPhotos] = useState([]);
   const [photosLoaded, setPhotosLoaded] = useState(!isEdit);
+  const [boxId, setBoxId] = useState((initial && initial.boxId) || null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -41,12 +46,14 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
   async function handleSubmit() {
     if (saving) return;
     setSaving(true);
+    setError("");
     try {
-      await onSubmit({
+      const result = await onSubmit({
         name: name.trim(), game, setName: setName_, cardNumber, condition, category, language,
         gradingCompany: graded ? gradingCompany : null, grade: graded ? grade.trim() : null,
-        assignedCost: assignedCost.trim() === "" ? null : parseFloat(assignedCost), photos,
+        assignedCost: assignedCost.trim() === "" ? null : parseFloat(assignedCost), photos, boxId,
       });
+      if (result?.error) setError(result.error);
     } finally {
       setSaving(false);
     }
@@ -78,11 +85,27 @@ export function LotCardForm({ lot, initial, onCancel, onSubmit, onDelete }) {
       <Field label={t("common.photos")}>
         {photosLoaded ? <PhotoPicker value={photos} onChange={setPhotos} /> : <span className="text-[12px]" style={{ color: C.textFaint }}>{t("common.loadingPhotos")}</span>}
       </Field>
+      <BoxPicker value={boxId} onChange={setBoxId} />
+      {error && (
+        <div className="text-[13px] mb-4 px-3 py-2 rounded-lg" style={{ background: C.crimsonDim, color: C.text }}>
+          {error}
+        </div>
+      )}
       <div className="flex gap-3 mt-2">
-        {isEdit && <GhostButton onClick={onDelete} style={{ color: C.crimson, borderColor: C.crimsonDim }}><Trash2 size={14} /> {t("common.delete")}</GhostButton>}
+        {isEdit && <GhostButton onClick={() => setConfirmDelete(true)} style={{ color: C.crimson, borderColor: C.crimsonDim }}><Trash2 size={14} /> {t("common.delete")}</GhostButton>}
         <PrimaryButton full disabled={saving} onClick={handleSubmit}>{saving ? t("common.saving") : <><Check size={16} /> {isEdit ? t("common.save") : t("forms.addCard")}</>}</PrimaryButton>
       </div>
       <button onClick={onCancel} className="w-full text-center text-[13px] mt-3" style={{ color: C.textDim }}>{t("common.cancel")}</button>
+
+      {confirmDelete && (
+        <ConfirmDialog
+          title={t("common.deleteConfirmTitle")}
+          message={t("forms.deleteLotCardConfirmMessage")}
+          confirmLabel={t("common.delete")}
+          onConfirm={onDelete}
+          onCancel={() => setConfirmDelete(false)}
+        />
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Field } from "../ui/Field";
 import { TextInput, Select, TextArea } from "../ui/Inputs";
 import { PhotoPicker } from "../ui/Photo";
 import { GradingFields } from "../ui/GradingFields";
+import { BoxPicker } from "../ui/BoxPicker";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Add Purchase Form (top-level: single card OR lot container) ----------
@@ -32,7 +33,9 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
   const [source, setSource] = useState("");
   const [notes, setNotes] = useState("");
   const [photos, setPhotos] = useState([]);
+  const [boxId, setBoxId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const valid = purchaseType === "singola"
     ? name.trim() && price !== "" && !isNaN(parseFloat(price))
@@ -41,12 +44,14 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
   async function handleSubmit() {
     if (!valid || saving) return;
     setSaving(true);
+    setError("");
     try {
-      await onSubmit({
+      const result = await onSubmit({
         purchaseType, game, name, setName: setName_, cardNumber, condition, category, language,
         gradingCompany: graded ? gradingCompany : null, grade: graded ? grade.trim() : null,
-        lotName, quantity, price, purchaseDate, source, notes, photos,
+        lotName, quantity, price, purchaseDate, source, notes, photos, boxId,
       });
+      if (result?.error) setError(result.error);
     } finally {
       setSaving(false);
     }
@@ -112,6 +117,13 @@ export function AddPurchaseForm({ onCancel, onSubmit }) {
       <Field label={t("common.source")}><TextInput value={source} onChange={(e) => setSource(e.target.value)} placeholder={t("forms.sourcePlaceholder")} /></Field>
       <Field label={t("common.notes")}><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("forms.purchaseNotesPlaceholder")} /></Field>
       <Field label={purchaseType === "singola" ? t("common.photos") : t("forms.photosLot")}><PhotoPicker value={photos} onChange={setPhotos} /></Field>
+      <BoxPicker value={boxId} onChange={setBoxId} />
+
+      {error && (
+        <div className="text-[13px] mb-4 px-3 py-2 rounded-lg" style={{ background: C.crimsonDim, color: C.text }}>
+          {error}
+        </div>
+      )}
 
       <div className="flex gap-3 mt-2">
         <GhostButton full onClick={onCancel}>{t("common.cancel")}</GhostButton>

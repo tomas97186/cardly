@@ -2,17 +2,20 @@ import { Edit2, RotateCcw, Megaphone, ShoppingBag, Tag, ExternalLink, ChevronRig
 import { C } from "../../lib/theme";
 import { useCatalog } from "../../context/CatalogContext";
 import { useLanguage } from "../../context/LanguageContext";
+import { useEbayMarket } from "../../context/EbayMarketContext";
 import { money, fmtDate } from "../../lib/format";
 import { ebaySearchUrl, cardmarketSearchUrl } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { Badge } from "../ui/Badge";
 import { PhotoThumb, PhotoGallery } from "../ui/Photo";
+import { BoxLocationRow } from "../ui/BoxLocationRow";
 import { GhostButton, GhostLinkButton, PrimaryButton } from "../ui/Buttons";
 
 // ---------- Detail modal for a card that lives inside a lot ----------
 export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale, onList, onEditListing, onUnlist, onOpenGroup, onCancelGroupSale }) {
   const { GAME_META } = useCatalog();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const { ebayMarket } = useEbayMarket();
   const meta = GAME_META[card.game || lot.game] || GAME_META.altro;
   const costKnown = card.assignedCost != null;
   const isGroupSale = !!(card.sale && card.sale.groupId);
@@ -46,9 +49,15 @@ export function LotCardDetail({ lot, card, onClose, onEdit, onSell, onCancelSale
         </div>
       </div>
 
+      {card.boxId && (
+        <div className="space-y-1.5 mb-4 text-[13.5px]" style={{ color: C.textDim }}>
+          <BoxLocationRow boxId={card.boxId} />
+        </div>
+      )}
+
       <div className="flex gap-3 mb-4">
-        <GhostLinkButton full href={cardmarketSearchUrl(card.name, card.cardNumber, card.game || lot.game)}><Search size={14} /> Cardmarket</GhostLinkButton>
-        <GhostLinkButton full href={ebaySearchUrl(card.name, card.cardNumber)}><Search size={14} /> eBay</GhostLinkButton>
+        <GhostLinkButton full href={cardmarketSearchUrl(card.name, card.cardNumber, card.game || lot.game, lang)}><Search size={14} /> Cardmarket</GhostLinkButton>
+        <GhostLinkButton full href={ebaySearchUrl(card.name, card.cardNumber, ebayMarket)}><Search size={14} /> eBay</GhostLinkButton>
       </div>
 
       {card.status === "listed" && card.listing && (
