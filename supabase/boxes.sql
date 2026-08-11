@@ -8,7 +8,7 @@
 -- stabile anche se l'utente rinomina la scatola (`label`), così l'adesivo QR
 -- stampato non va mai rifatto.
 
-create table public.boxes (
+create table if not exists public.boxes (
   id text primary key,
   user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
   code text not null,
@@ -16,8 +16,9 @@ create table public.boxes (
   created_at timestamptz not null default now(),
   unique (user_id, code)
 );
-create index boxes_user_id_idx on public.boxes(user_id);
+create index if not exists boxes_user_id_idx on public.boxes(user_id);
 alter table public.boxes enable row level security;
+drop policy if exists "boxes_all_own" on public.boxes;
 create policy "boxes_all_own" on public.boxes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Un item/lotto/carta-di-lotto sta in AL PIÙ una scatola alla volta (è un oggetto
@@ -68,7 +69,7 @@ create trigger boxes_enforce_premium
 -- modifica bloccherebbe qualunque salvataggio su una riga già assegnata a una
 -- scatola per un utente Free.
 create or replace function public.enforce_box_assignment_premium_only()
-returns trigger language plpgsql as $$Bu
+returns trigger language plpgsql as $$
 declare
   tier text;
   old_box_id text;

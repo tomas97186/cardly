@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import {
-  Package, Plus, Search, LayoutGrid, ShoppingBag, Megaphone, User,
+  Package, Plus, Search, LayoutGrid, ShoppingBag, Megaphone, SquareLibrary, User, Box as BoxIcon,
 } from "lucide-react";
 
 import { useAuth } from "./hooks/useAuth";
@@ -63,7 +63,7 @@ const ReportSection = lazy(() => import("./components/sections/ReportSection"));
 // translation keys, resolved via t() at render time so they react to language changes.
 const NAV_ITEMS = [
   ["dashboard", "nav.dashboard", LayoutGrid],
-  ["inventory", "nav.inventory", Package],
+  ["inventory", "nav.inventory", SquareLibrary],
   ["listings", "nav.listings", Megaphone],
   ["sales", "nav.sales", ShoppingBag],
   ["settings", "nav.settings", User],
@@ -141,6 +141,27 @@ function AppInner({ auth }) {
   // Sotto-tab della sezione Inventario, solo Premium (le Scatole sono una loro
   // funzione) — i Free vedono sempre e solo "items", niente switcher visibile.
   const [inventoryTab, setInventoryTab] = useState("items"); // "items" | "boxes"
+
+  // Il QR di una scatola punta a ?box=CODICE (vedi lib/boxQr.js) — se il link è
+  // stato aperto da fuori l'app (fotocamera di sistema, non lo scanner interno),
+  // portiamo subito l'utente su quella scatola in Archivio invece di lasciarlo
+  // sulla Dashboard. BoxesSection carica solo le proprie scatole (RLS), quindi
+  // un codice di un altro account risulta semplicemente "non trovato", mai
+  // visibile qui.
+  const [pendingBoxCode, setPendingBoxCode] = useState(null);
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("box");
+    if (code) {
+      window.history.replaceState(null, "", window.location.pathname);
+      setPendingBoxCode(code);
+    }
+  }, []);
+  useEffect(() => {
+    if (pendingBoxCode && isPremium) {
+      setView("inventory");
+      setInventoryTab("boxes");
+    }
+  }, [pendingBoxCode, isPremium]);
 
   const [showAdd, setShowAdd] = useState(false);
   const [showNewBox, setShowNewBox] = useState(false);
@@ -599,15 +620,35 @@ function AppInner({ auth }) {
           </h1>
         </div>
         <nav className="flex-1 px-3 space-y-1">
-          {NAV_ITEMS.map(([val, label, Icon]) => (
-            <button
-              key={val} onClick={() => setView(val)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors"
-              style={{ background: view === val ? C.surfaceAlt : "transparent", color: view === val ? C.gold : C.textDim }}
-            >
-              <Icon size={18} /> {t(label)}
-            </button>
-          ))}
+          {NAV_ITEMS.flatMap(([val, label, Icon]) => {
+            const isInventory = val === "inventory";
+            const active = view === val && (!isInventory || inventoryTab === "items");
+            const buttons = [
+              <button
+                key={val} onClick={() => { setView(val); if (isInventory) setInventoryTab("items"); }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors"
+                style={{ background: active ? C.surfaceAlt : "transparent", color: active ? C.gold : C.textDim }}
+              >
+                <Icon size={18} /> {t(label)}
+              </button>,
+            ];
+            // Scorciatoia diretta ad Archivio solo su desktop, subito dopo
+            // Inventario — su mobile resta raggiungibile dall'icona nell'header
+            // di Inventario (niente voce in più nella tab bar in basso).
+            if (isInventory && isPremium) {
+              const boxesActive = view === "inventory" && inventoryTab === "boxes";
+              buttons.push(
+                <button
+                  key="boxes" onClick={() => { setView("inventory"); setInventoryTab("boxes"); }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-colors"
+                  style={{ background: boxesActive ? C.surfaceAlt : "transparent", color: boxesActive ? C.gold : C.textDim }}
+                >
+                  <BoxIcon size={18} /> {t("boxes.boxesTab")}
+                </button>
+              );
+            }
+            return buttons;
+          })}
         </nav>
         <div className="px-3 pb-6 space-y-1">
           <button
@@ -636,29 +677,20 @@ function AppInner({ auth }) {
           )
         ) : view === "inventory" ? (
           <>
-            {isPremium && (
-              <div className="flex gap-2 mb-4 p-1 rounded-xl" style={{ background: C.surfaceAlt, maxWidth: 280 }}>
-                {[["items", t("boxes.itemsTab")], ["boxes", t("boxes.boxesTab")]].map(([val, label]) => (
-                  <button
-                    key={val} onClick={() => setInventoryTab(val)}
-                    className="flex-1 py-2 rounded-lg text-sm font-semibold transition-colors"
-                    style={{ background: inventoryTab === val ? C.gold : "transparent", color: inventoryTab === val ? C.goldText : C.textDim }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            )}
             {inventoryTab === "boxes" && isPremium ? (
               <BoxesSection
                 dataVersion={dataVersion}
                 onOpenItem={(id) => setDetailItemId(id)} onOpenLot={(id) => setDetailLotId(id)}
                 onOpenLotCard={(lotId, cardId) => setDetailLotCard({ lotId, cardId })}
+                onBackToItems={() => setInventoryTab("items")}
+                pendingBoxCode={pendingBoxCode}
+                onConsumePendingBoxCode={() => setPendingBoxCode(null)}
               />
             ) : (
               <InventorySection
                 games={catalog.games} dataVersion={dataVersion}
                 onOpenItem={(id) => setDetailItemId(id)} onOpenLot={(id) => setDetailLotId(id)}
+                onOpenBoxes={() => setInventoryTab("boxes")}
               />
             )}
           </>

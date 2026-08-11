@@ -797,16 +797,35 @@ export async function loadBoxByCode(code) {
 
 // Tutto ciò che è assegnato a una scatola — carte singole, lotti (nel loro insieme)
 // e carte dentro i lotti, per mostrare "cosa c'è qui dentro" dopo una scansione.
+// Esclude le vendute: una volta venduta, una carta non è più "nella scatola" nel
+// senso che interessa qui (dove cercarla fisicamente), è fuori di casa. I lotti
+// non hanno uno status proprio (lo hanno le carte al loro interno), quindi restano
+// sempre inclusi.
 export async function loadBoxContents(boxId) {
   const [itemsRes, lotsRes, lotCardsRes] = await Promise.all([
-    supabase.from("items").select("*, sales(*)").eq("box_id", boxId),
+    supabase.from("items").select("*, sales(*)").eq("box_id", boxId).neq("status", "sold"),
     supabase.from("lots").select("*").eq("box_id", boxId),
-    supabase.from("lot_cards").select("*, sales(*), lots(lot_name)").eq("box_id", boxId),
+    supabase.from("lot_cards").select("*, sales(*), lots(lot_name)").eq("box_id", boxId).neq("status", "sold"),
   ]);
   const items = (itemsRes.data || []).map(rowToItem);
   const lots = (lotsRes.data || []).map(rowToLot);
   const lotCards = (lotCardsRes.data || []).map((row) => ({ ...rowToLotCard(row), lotName: row.lots?.lot_name || "", lotId: row.lot_id }));
   return { items, lots, lotCards };
+}
+
+// Quante carte disponibili (non vendute) ha ogni scatola — per il numero mostrato
+// nella griglia di Archivio, senza dover aprire ognuna. Un solo giro di query
+// leggere (solo box_id) invece di N query, una per scatola.
+export async function loadBoxItemCounts() {
+  const [itemsRes, lotCardsRes] = await Promise.all([
+    supabase.from("items").select("box_id").not("box_id", "is", null).neq("status", "sold"),
+    supabase.from("lot_cards").select("box_id").not("box_id", "is", null).neq("status", "sold"),
+  ]);
+  const counts = {};
+  for (const row of [...(itemsRes.data || []), ...(lotCardsRes.data || [])]) {
+    counts[row.box_id] = (counts[row.box_id] || 0) + 1;
+  }
+  return counts;
 }
 
 // Assegna una scatola a carte già catalogate (trovate via searchGlobal) — usato

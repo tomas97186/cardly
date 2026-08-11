@@ -13,6 +13,8 @@ import { BoxQrImage } from "../ui/BoxQrImage";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { AssignExistingCardModal } from "../forms/AssignExistingCardModal";
 
+const QR_SIZES = { small: 140, medium: 220, large: 320 };
+
 // ---------- Pagina di drill-down (non un modale) per il contenuto di una
 // scatola — stesso pattern di navigazione dei sotto-pannelli di Impostazioni:
 // bottone indietro + contenuto a piena pagina. Rinomina/elimina, QR/stampa,
@@ -23,6 +25,7 @@ export function BoxDetailPage({ box, onBack, onRenamed, onDeleted, onOpenItem, o
   const [contents, setContents] = useState(null);
   const [search, setSearch] = useState("");
   const [showQr, setShowQr] = useState(false);
+  const [qrSize, setQrSize] = useState("medium");
   const [renaming, setRenaming] = useState(false);
   const [labelDraft, setLabelDraft] = useState(box.label || "");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -125,11 +128,22 @@ export function BoxDetailPage({ box, onBack, onRenamed, onDeleted, onOpenItem, o
         <>
           <Modal title={box.label || box.code} onClose={() => setShowQr(false)}>
             <div className="flex flex-col items-center">
-              <BoxQrImage code={box.code} size={220} />
+              <BoxQrImage code={box.code} size={QR_SIZES[qrSize]} />
               <div className="text-sm font-semibold mt-3">{box.label || box.code}</div>
               <div className="text-[12px] mt-0.5" style={{ color: C.textFaint }}>{t("boxes.codeLabel")}: {box.code}</div>
             </div>
-            <GhostButton full onClick={() => window.print()} style={{ marginTop: 20 }}>
+            <div className="mt-4">
+              <div className="text-[12px] mb-1.5" style={{ color: C.textFaint }}>{t("boxes.qrSizeLabel")}</div>
+              <div className="flex gap-2">
+                {Object.keys(QR_SIZES).map((s) => (
+                  <button key={s} onClick={() => setQrSize(s)} className="flex-1 px-3 py-1.5 rounded-full text-[12.5px] font-medium"
+                    style={{ background: qrSize === s ? C.gold : C.surfaceAlt, color: qrSize === s ? C.goldText : C.textDim }}>
+                    {t(`boxes.qrSize${s[0].toUpperCase()}${s.slice(1)}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <GhostButton full onClick={() => window.print()} style={{ marginTop: 16 }}>
               <Printer size={14} /> {t("boxes.print")}
             </GhostButton>
           </Modal>
@@ -140,7 +154,7 @@ export function BoxDetailPage({ box, onBack, onRenamed, onDeleted, onOpenItem, o
               pagina. */}
           {createPortal(
             <div id="box-qr-print" className="hidden print:flex flex-col items-center">
-              <BoxQrImage code={box.code} size={220} />
+              <BoxQrImage code={box.code} size={QR_SIZES[qrSize]} />
               <div className="text-sm font-semibold mt-3">{box.label || box.code}</div>
               <div className="text-[12px] mt-0.5" style={{ color: C.textFaint }}>{t("boxes.codeLabel")}: {box.code}</div>
             </div>,

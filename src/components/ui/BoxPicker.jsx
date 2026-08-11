@@ -12,6 +12,10 @@ import { GhostButton } from "./Buttons";
 import { Modal } from "./Modal";
 import { QrScannerModal } from "./QrScannerModal";
 
+function boxDisplayName(b) {
+  return b.label ? `${b.label} (${b.code})` : b.code;
+}
+
 // Nasconde se stesso per il piano Free — stesso pattern di PhotoPicker con
 // useEntitlement() interno, invece di far controllare isPremium ad ognuno dei
 // form che lo usano. A differenza di una <Select> semplice, tocca il campo per
@@ -35,7 +39,7 @@ export function BoxPicker({ value, onChange }) {
           type="button" onClick={() => setOpen(true)}
           style={{ ...inputStyle, textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between" }}
         >
-          <span style={{ color: selected ? C.text : C.textFaint }}>{selected ? (selected.label || selected.code) : t("boxes.none")}</span>
+          <span style={{ color: selected ? C.text : C.textFaint }}>{selected ? boxDisplayName(selected) : t("boxes.none")}</span>
           <ChevronRight size={14} color={C.textFaint} />
         </button>
       </Field>
@@ -102,9 +106,8 @@ function BoxPickerModal({ boxes, onSelect, onBoxCreated, onClose }) {
           {t("boxes.none")}
         </button>
         {filtered.map((b) => (
-          <button key={b.id} onClick={() => onSelect(b)} className="w-full px-3 py-2.5 rounded-xl text-left" style={{ background: C.surfaceAlt }}>
-            <div className="text-[13.5px] font-medium truncate">{b.label || b.code}</div>
-            <div className="text-[11px]" style={{ color: C.textFaint }}>{b.code}</div>
+          <button key={b.id} onClick={() => onSelect(b)} className="w-full px-3 py-2.5 rounded-xl text-left text-[13.5px] font-medium truncate" style={{ background: C.surfaceAlt }}>
+            {boxDisplayName(b)}
           </button>
         ))}
       </div>

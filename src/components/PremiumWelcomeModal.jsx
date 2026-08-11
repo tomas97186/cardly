@@ -25,7 +25,7 @@ export function PremiumWelcomeModal({ onClose }) {
           </div>
           <p className="text-[13.5px] text-center mb-4" style={{ color: C.textDim }}>{t("premiumWelcome.body")}</p>
           <ul className="space-y-2 mb-5">
-            {[t("premiumWelcome.perkItems"), t("premiumWelcome.perkPhotos"), t("premiumWelcome.perkQuality")].map((perk) => (
+            {[t("premiumWelcome.perkItems"), t("premiumWelcome.perkPhotos"), t("premiumWelcome.perkQuality"), t("premiumWelcome.perkBoxes")].map((perk) => (
               <li key={perk} className="flex items-center gap-2 text-[13px]" style={{ color: C.text }}>
                 <Check size={15} color={C.teal} /> {perk}
               </li>

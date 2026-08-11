@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Search, Package } from "lucide-react";
+import { Search, Package, Box as BoxIcon, Lock } from "lucide-react";
 import { C, CATEGORY_OPTIONS } from "../../lib/theme";
 import { useLanguage } from "../../context/LanguageContext";
+import { useEntitlement } from "../../context/EntitlementContext";
 import { searchInventory } from "../../lib/storage";
 import { TextInput } from "../ui/Inputs";
 import { FilterToggle } from "../ui/FilterToggle";
@@ -11,8 +12,9 @@ import { ItemCard } from "../ui/ItemCard";
 
 const PAGE_SIZE = 60;
 
-export function InventorySection({ games, dataVersion, onOpenItem, onOpenLot }) {
+export function InventorySection({ games, dataVersion, onOpenItem, onOpenLot, onOpenBoxes }) {
   const { t } = useLanguage();
+  const { isPremium } = useEntitlement();
   const [search, setSearch] = useState("");
   const [filterGame, setFilterGame] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -64,6 +66,24 @@ export function InventorySection({ games, dataVersion, onOpenItem, onOpenLot }) 
 
   return (
     <>
+      {onOpenBoxes && (
+        <div className="lg:hidden flex items-center justify-between mb-3">
+          <h2 style={{ fontFamily: "'Oswald', sans-serif", letterSpacing: "0.02em" }} className="text-lg font-semibold">{t("nav.inventory")}</h2>
+          <button
+            onClick={isPremium ? onOpenBoxes : undefined}
+            disabled={!isPremium}
+            title={isPremium ? undefined : t("boxes.premiumOnly")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12.5px] font-semibold flex-shrink-0"
+            style={
+              isPremium
+                ? { background: C.gold, color: C.goldText }
+                : { background: C.surfaceAlt, color: C.textFaint, opacity: 0.7, cursor: "not-allowed" }
+            }
+          >
+            <BoxIcon size={13} /> {t("boxes.boxesTab")} {!isPremium && <Lock size={11} />}
+          </button>
+        </div>
+      )}
       <div className="sticky top-0 z-10" style={{ background: C.bg, borderRadius: "10px" }}>
         <div className="relative">
           <Search size={15} style={{ position: "absolute", left: 12, top: 11 }} color={C.textFaint} />

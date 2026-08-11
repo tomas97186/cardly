@@ -1,21 +1,39 @@
 import { useState, useEffect } from "react";
-import { Search, Box as BoxIcon } from "lucide-react";
+import { Search, Box as BoxIcon, ChevronLeft } from "lucide-react";
 import { C } from "../../lib/theme";
 import { useLanguage } from "../../context/LanguageContext";
-import { loadBoxes } from "../../lib/storage";
+import { loadBoxes, loadBoxItemCounts } from "../../lib/storage";
 import { TextInput } from "../ui/Inputs";
 import { BoxDetailPage } from "../details/BoxDetailPage";
 
 // ---------- Secondo tab di Inventario (solo Premium) — griglia di scatole;
 // aprirne una sostituisce la griglia con BoxDetailPage (drill-down, non un
 // modale sopra). ----------
-export function BoxesSection({ dataVersion, onOpenItem, onOpenLot, onOpenLotCard }) {
+export function BoxesSection({ dataVersion, onOpenItem, onOpenLot, onOpenLotCard, onBackToItems, pendingBoxCode, onConsumePendingBoxCode }) {
   const { t } = useLanguage();
   const [boxes, setBoxes] = useState(null);
+  const [counts, setCounts] = useState({});
   const [search, setSearch] = useState("");
   const [openBox, setOpenBox] = useState(null);
+  const [notFoundNotice, setNotFoundNotice] = useState(false);
 
-  useEffect(() => { loadBoxes().then(setBoxes); }, [dataVersion]);
+  useEffect(() => {
+    loadBoxes().then(setBoxes);
+    loadBoxItemCounts().then(setCounts);
+  }, [dataVersion]);
+
+  // Arrivo da un QR scansionato fuori dall'app (vedi App.jsx, ?box=CODICE) —
+  // loadBoxes() sopra è già filtrato dalle RLS alle sole scatole dell'utente,
+  // quindi un codice di un altro account (o inventato) risulta "non trovato",
+  // mai visibile qui.
+  useEffect(() => {
+    if (!pendingBoxCode || boxes === null) return;
+    const match = boxes.find((b) => b.code === pendingBoxCode);
+    if (match) setOpenBox(match);
+    else setNotFoundNotice(true);
+    onConsumePendingBoxCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingBoxCode, boxes]);
 
   function handleRenamed(updated) {
     setOpenBox(updated);
@@ -30,7 +48,7 @@ export function BoxesSection({ dataVersion, onOpenItem, onOpenLot, onOpenLotCard
     return (
       <BoxDetailPage
         box={openBox}
-        onBack={() => setOpenBox(null)}
+        onBack={() => { setOpenBox(null); loadBoxItemCounts().then(setCounts); }}
         onRenamed={handleRenamed}
         onDeleted={() => handleDeleted(openBox.id)}
         onOpenItem={onOpenItem}
@@ -45,6 +63,17 @@ export function BoxesSection({ dataVersion, onOpenItem, onOpenLot, onOpenLotCard
 
   return (
     <div>
+      {onBackToItems && (
+        <button onClick={onBackToItems} className="lg:hidden flex items-center gap-1 mb-3 text-[12.5px]" style={{ color: C.textDim }}>
+          <ChevronLeft size={15} /> {t("boxes.itemsTab")}
+        </button>
+      )}
+      {notFoundNotice && (
+        <div className="flex items-center justify-between gap-2 mb-3 px-3 py-2 rounded-lg text-[12.5px]" style={{ background: C.crimsonDim, color: C.crimson }}>
+          {t("boxes.scanNotFound")}
+          <button onClick={() => setNotFoundNotice(false)} className="text-[15px] leading-none font-bold flex-shrink-0">×</button>
+        </div>
+      )}
       <div className="sticky top-0 z-10 pb-3" style={{ background: C.bg }}>
         <div className="relative">
           <Search size={15} style={{ position: "absolute", left: 12, top: 11 }} color={C.textFaint} />
@@ -62,7 +91,10 @@ export function BoxesSection({ dataVersion, onOpenItem, onOpenLot, onOpenLotCard
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {filtered.map((b) => (
             <button key={b.id} onClick={() => setOpenBox(b)} className="p-4 rounded-2xl text-left" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-              <BoxIcon size={20} color={C.gold} />
+              <div className="flex items-center justify-between">
+                <BoxIcon size={20} color={C.gold} />
+                <span className="text-[11px] font-semibold" style={{ color: C.textDim }}>{t("boxes.itemCount", { count: counts[b.id] || 0 })}</span>
+              </div>
               <div className="text-[13.5px] font-medium mt-2 truncate">{b.label || b.code}</div>
               <div className="text-[11px] mt-0.5" style={{ color: C.textFaint }}>{b.code}</div>
             </button>

@@ -27,8 +27,13 @@ Deno.serve(async (req) => {
     const { data: { user }, error: authError } = await asUser.auth.getUser();
     if (authError || !user) return new Response("Unauthorized", { status: 401, headers: corsHeaders });
 
-    const { origin } = await req.json();
+    const { origin, interval } = await req.json();
     if (!origin) return new Response("Missing origin", { status: 400, headers: corsHeaders });
+
+    const priceId = interval === "annual"
+      ? Deno.env.get("STRIPE_PRICE_ID_ANNUAL")
+      : Deno.env.get("STRIPE_PRICE_ID");
+    if (!priceId) return new Response("Price not configured for this interval", { status: 400, headers: corsHeaders });
 
     // Client "service role": l'unico autorizzato a leggere/scrivere profiles.
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -52,7 +57,11 @@ Deno.serve(async (req) => {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: Deno.env.get("STRIPE_PRICE_ID")!, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
+      // Campo "codice promozionale" nativo della pagina ospitata da Stripe — non
+      // serve costruire (e validare) un input custom lato nostro per qualcosa che
+      // Stripe gestisce già correttamente.
+      allow_promotion_codes: true,
       // ?checkout=success fa comparire il modale di benvenuto lato client (vedi
       // App.jsx / PremiumWelcomeModal) — cancel_url resta pulito, un checkout
       // annullato non ha nulla da festeggiare.

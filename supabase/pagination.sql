@@ -94,7 +94,15 @@ language sql stable security invoker as $$
     where i.user_id = auth.uid()
       and (p_kind is null or p_kind = 'all' or p_kind = 'singola')
       and (p_game is null or p_game = 'all' or i.game = p_game)
-      and (p_status is null or p_status = 'all' or i.status = p_status)
+      -- Nessun filtro di stato scelto esplicitamente ("all"/default) esclude le
+      -- vendute — non è più "letteralmente tutto", è "tutto ciò che è ancora
+      -- mio". Per rivederle bisogna scegliere il filtro "Vendute" di proposito.
+      and (
+        case
+          when p_status is null or p_status = 'all' then i.status <> 'sold'
+          else i.status = p_status
+        end
+      )
       and (
         p_graded is null or p_graded = 'all'
         or (p_graded = 'graded' and i.grading_company is not null)
@@ -133,14 +141,24 @@ language sql stable security invoker as $$
     where l.user_id = auth.uid()
       and (p_kind is null or p_kind = 'all' or p_kind = 'lotto')
       and (p_game is null or p_game = 'all' or l.game = p_game)
+      -- Stessa esclusione delle vendute di default vista sopra per le carte
+      -- singole: un lotto completamente venduto (tutte le carte catalogate sono
+      -- 'sold', nessuna quota ancora da catalogare) non compare finché non si
+      -- sceglie di proposito il filtro "Vendute".
       and (
-        p_status is null or p_status = 'all'
-        or (p_status = 'sold' and exists (select 1 from public.lot_cards lc where lc.lot_id = l.id and lc.status = 'sold'))
-        or (p_status = 'listed' and exists (select 1 from public.lot_cards lc where lc.lot_id = l.id and lc.status = 'listed'))
-        or (p_status = 'in_stock' and (
-              coalesce(agg.cards_count, 0) < l.quantity
-              or exists (select 1 from public.lot_cards lc where lc.lot_id = l.id and lc.status = 'in_stock')
-            ))
+        case
+          when p_status is null or p_status = 'all' then (
+            coalesce(agg.cards_count, 0) < l.quantity
+            or exists (select 1 from public.lot_cards lc where lc.lot_id = l.id and lc.status in ('in_stock', 'listed'))
+          )
+          when p_status = 'sold' then exists (select 1 from public.lot_cards lc where lc.lot_id = l.id and lc.status = 'sold')
+          when p_status = 'listed' then exists (select 1 from public.lot_cards lc where lc.lot_id = l.id and lc.status = 'listed')
+          when p_status = 'in_stock' then (
+            coalesce(agg.cards_count, 0) < l.quantity
+            or exists (select 1 from public.lot_cards lc where lc.lot_id = l.id and lc.status = 'in_stock')
+          )
+          else true
+        end
       )
       and (
         p_graded is null or p_graded = 'all'

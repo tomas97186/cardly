@@ -15,7 +15,7 @@ export function NewBoxForm({ onCancel, onSubmit }) {
   const [error, setError] = useState("");
 
   async function handleSubmit() {
-    if (!label.trim() || saving) return;
+    if (saving) return;
     setSaving(true);
     setError("");
     const result = await onSubmit(label.trim());
@@ -25,13 +25,13 @@ export function NewBoxForm({ onCancel, onSubmit }) {
 
   return (
     <div>
-      <Field label={t("boxes.fieldLabel")}>
+      <Field label={t("boxes.fieldLabel")} hint={t("boxes.newBoxHint")}>
         <TextInput autoFocus value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("boxes.newBoxPlaceholder")} onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
       </Field>
       {error && <p className="text-[12px] mb-3" style={{ color: C.crimson }}>{error}</p>}
       <div className="flex gap-3 mt-2">
         <GhostButton full onClick={onCancel}>{t("common.cancel")}</GhostButton>
-        <PrimaryButton full onClick={handleSubmit} disabled={!label.trim() || saving}>
+        <PrimaryButton full onClick={handleSubmit} disabled={saving}>
           {saving ? t("common.saving") : <><Plus size={16} /> {t("common.add")}</>}
         </PrimaryButton>
       </div>

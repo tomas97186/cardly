@@ -33,6 +33,13 @@ export function money(n) {
   const v = Number(n) || 0;
   return new Intl.NumberFormat(currentLocale, { style: "currency", currency: currentCurrency }).format(v);
 }
+// Come money(), ma con una valuta esplicita invece di quella scelta dall'utente
+// per il proprio inventario — serve per importi che arrivano già in una valuta
+// fissa (es. i prezzi dell'abbonamento Premium letti da Stripe).
+export function formatAmount(n, currencyCode) {
+  const v = Number(n) || 0;
+  return new Intl.NumberFormat(currentLocale, { style: "currency", currency: currencyCode }).format(v);
+}
 export function fmtDate(d) {
   if (!d) return "—";
   try {

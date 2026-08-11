@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import {
   LogOut, KeyRound, ShieldCheck, ShieldAlert, Package, Clock, Gamepad2, Tag, Plus, X, FileText,
   ChevronRight, ChevronLeft, Award, Info, AlertTriangle, Scale, FileCheck, Code2, Mail, Languages, Check,
-  SunMedium, Moon, Coins, Crown, Cog, Search,
+  SunMedium, Moon, Coins, Crown, Cog, Search, Layers, Images, Sparkles, Box as BoxIcon,
 } from "lucide-react";
 import { C } from "../../lib/theme";
-import { fmtDate, CURRENCY_OPTIONS } from "../../lib/format";
+import { fmtDate, formatAmount, CURRENCY_OPTIONS } from "../../lib/format";
 import { SUPPORT_EMAIL, FREE_TIER_ITEM_LIMIT, FREE_TIER_PHOTO_LIMIT, PREMIUM_PHOTO_LIMIT, FREE_PHOTO_RESIZE, PREMIUM_PHOTO_RESIZE, PHOTO_DOWNGRADE_GRACE_DAYS } from "../../lib/appConfig";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -13,7 +13,7 @@ import { useCurrency } from "../../context/CurrencyContext";
 import { useEntitlement } from "../../context/EntitlementContext";
 import { useEbayMarket } from "../../context/EbayMarketContext";
 import { loadInventoryCount, loadCataloguedCardCount } from "../../lib/storage";
-import { startCheckout, openBillingPortal } from "../../lib/stripe";
+import { startCheckout, openBillingPortal, loadPlanPrices } from "../../lib/stripe";
 import { EBAY_MARKET_OPTIONS } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
@@ -32,8 +32,15 @@ export function SettingsSection({ auth, catalog, onExportCSV }) {
   const { t, lang } = useLanguage();
   const { currency } = useCurrency();
   const { isPremium } = useEntitlement();
-  const [panel, setPanel] = useState(null); // null (account, home) | "more" | "catalog" | "data" | "language" | "about"
+  const [panel, setPanel] = useState(null); // null (account, home) | "more" | "catalog" | "data" | "language" | "about" | "plan"
 
+  if (panel === "plan") {
+    return (
+      <SettingsPanel title={t("settings.planTitle")} backLabel={t("settings.account")} onBack={() => setPanel(null)}>
+        <PlanUsageAndCompare />
+      </SettingsPanel>
+    );
+  }
   if (panel === "more") {
     return (
       <SettingsPanel title={t("settings.title")} backLabel={t("settings.account")} onBack={() => setPanel(null)}>
@@ -82,7 +89,7 @@ export function SettingsSection({ auth, catalog, onExportCSV }) {
 
   return (
     <div className="space-y-3">
-      <AccountPanel auth={auth} onOpenSettings={() => setPanel("more")} />
+      <AccountPanel auth={auth} onOpenSettings={() => setPanel("more")} onOpenPlan={() => setPanel("plan")} />
     </div>
   );
 }
@@ -213,21 +220,30 @@ function EbayMarketPanel() {
 
 function PlanUsageAndCompare() {
   const { t } = useLanguage();
-  const { isPremium, premiumSource, premiumUntil } = useEntitlement();
-  const [count, setCount] = useState(null);
+  const { isPremium, premiumSource } = useEntitlement();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => { if (!isPremium) loadCataloguedCardCount().then(setCount); }, [isPremium]);
+  const [billingInterval, setBillingInterval] = useState("monthly"); // "monthly" | "annual"
+  const [prices, setPrices] = useState(null); // { monthly, annual } | null finché in caricamento
 
-  const pct = count == null ? 0 : Math.min(100, (count / FREE_TIER_ITEM_LIMIT) * 100);
-  const barColor = pct >= 100 ? C.crimson : pct >= 80 ? C.amber : C.teal;
+  useEffect(() => { if (!isPremium) loadPlanPrices().then(setPrices); }, [isPremium]);
+
+  const monthly = prices?.monthly;
+  const annual = prices?.annual;
+  const monthlyDisplay = monthly ? formatAmount(monthly.amount / 100, monthly.currency.toUpperCase()) : null;
+  const annualDisplay = annual ? formatAmount(annual.amount / 100, annual.currency.toUpperCase()) : null;
+  // Quanto costerebbe l'annuale se pagato a rate mensili equivalenti, confrontato
+  // col prezzo mensile reale — mostrato solo se è un vero risparmio.
+  const savingsPct = monthly && annual && monthly.amount > 0
+    ? Math.round((1 - (annual.amount / 12) / monthly.amount) * 100)
+    : null;
 
   async function handleUpgrade() {
     if (busy) return;
     setBusy(true);
     setError("");
     try {
-      await startCheckout();
+      await startCheckout(billingInterval);
     } catch (e) {
       setError(t("settings.upgradeError"));
       setBusy(false);
@@ -248,74 +264,49 @@ function PlanUsageAndCompare() {
 
   return (
     <>
+      <PremiumPerksGrid />
+
       {!isPremium && (
         <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-          <div className="flex items-center justify-between text-[12px] mb-1.5" style={{ color: C.textDim }}>
-            <span>{t("settings.planUsageLabel")}</span>
-            <span style={{ color: barColor, fontWeight: 600 }}>
-              {count == null ? "…" : t("settings.planUsageCount", { count, limit: FREE_TIER_ITEM_LIMIT })}
-            </span>
+          <div className="text-sm font-semibold mb-3">{t("settings.planPricingTitle")}</div>
+          <div className="grid grid-cols-2 gap-2">
+            <PriceOption
+              label={t("settings.planPricingMonthly")}
+              price={monthlyDisplay}
+              suffix={t("settings.planPricingPerMonth")}
+              selected={billingInterval === "monthly"}
+              onClick={() => setBillingInterval("monthly")}
+            />
+            <PriceOption
+              label={t("settings.planPricingAnnual")}
+              price={annualDisplay}
+              suffix={t("settings.planPricingPerYear")}
+              selected={billingInterval === "annual"}
+              onClick={() => setBillingInterval("annual")}
+              badge={savingsPct > 0 ? t("settings.planSavingsBadge", { pct: savingsPct }) : null}
+            />
           </div>
-          <div style={{ height: 8, borderRadius: 999, background: C.surfaceAlt, overflow: "hidden" }}>
-            <div style={{ height: "100%", width: `${pct}%`, background: barColor, borderRadius: 999, transition: "width 0.2s ease" }} />
+
+          <div className="flex items-start gap-2 mt-3 p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
+            <Tag size={14} color={C.textFaint} style={{ marginTop: 1, flexShrink: 0 }} />
+            <div>
+              <div className="text-[12.5px] font-medium">{t("settings.planDiscountTitle")}</div>
+              <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>{t("settings.planDiscountBody")}</div>
+            </div>
           </div>
-          {pct >= 100 && (
-            <p className="text-[12px] mt-2" style={{ color: C.crimson }}>{t("settings.planUsageFull")}</p>
-          )}
-        </div>
-      )}
 
-      {isPremium && premiumUntil && (
-        <div className="p-4 rounded-2xl flex items-center justify-between" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-          <span className="text-[12px]" style={{ color: C.textDim }}>
-            {premiumSource === "stripe" ? t("settings.nextChargeLabel") : t("settings.premiumUntilLabel")}
-          </span>
-          <span className="text-[12.5px] font-semibold">{fmtDate(premiumUntil)}</span>
-        </div>
-      )}
+          <PrimaryButton
+            full style={{ marginTop: 16 }}
+            disabled={busy || (billingInterval === "monthly" ? !monthly : !annual)}
+            onClick={handleUpgrade}
+          >
+            <Crown size={14} /> {busy ? t("settings.redirecting") : t("settings.confirmPlanButton")}
+          </PrimaryButton>
 
-      <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-        <div className="text-sm font-semibold mb-3">{t("settings.planCompareTitle")}</div>
-        <div className="grid items-center pb-2" style={{ gridTemplateColumns: "1fr 64px 74px" }}>
-          <span />
-          <span className="text-center text-[10.5px] uppercase tracking-wide" style={{ color: C.textFaint }}>{t("settings.planFree")}</span>
-          <span className="text-center text-[10.5px] uppercase tracking-wide" style={{ color: C.gold }}>{t("settings.planPremium")}</span>
+          <p className="text-[11px] text-center mt-3 leading-relaxed" style={{ color: C.textFaint }}>
+            {t("settings.planAutoRenewNotice")}
+          </p>
         </div>
-        <PlanFeatureRow
-          label={t("settings.planFeatureItemLimit")}
-          free={t("settings.planFeatureItemLimitFree", { limit: FREE_TIER_ITEM_LIMIT })}
-          premium={t("settings.planFeatureItemLimitPremium")}
-        />
-        <PlanFeatureRow
-          label={t("settings.planFeaturePhotos") + ' *'}
-          free={t("settings.planFeaturePhotosFree", { limit: FREE_TIER_PHOTO_LIMIT })}
-          premium={t("settings.planFeaturePhotosPremium", { limit: PREMIUM_PHOTO_LIMIT })}
-        />
-        <PlanFeatureRow
-          label={t("settings.planFeaturePhotoQuality")}
-          free={t("settings.planFeaturePhotoQualityFree", { maxDim: FREE_PHOTO_RESIZE.maxDim })}
-          premium={t("settings.planFeaturePhotoQualityPremium", { maxDim: PREMIUM_PHOTO_RESIZE.maxDim })}
-        />
-        <PlanFeatureRow
-          label={t("boxes.planFeature")}
-          free={t("boxes.planFeatureFree")}
-          premium={t("boxes.planFeaturePremium")}
-        />
-        <p className="text-[11.5px] mt-3 leading-relaxed" style={{ color: C.textFaint }}>
-          * {t("settings.planPhotoGraceNote", { days: PHOTO_DOWNGRADE_GRACE_DAYS, limit: FREE_TIER_PHOTO_LIMIT })}
-        </p>
-      </div>
-
-      {error && (
-        <div className="text-[13px] px-3 py-2 rounded-lg" style={{ background: C.crimsonDim, color: C.text }}>
-          {error}
-        </div>
-      )}
-
-      {!isPremium && (
-        <GhostButton full disabled={busy} onClick={handleUpgrade} style={{ borderColor: C.gold, color: C.gold }}>
-          <Crown size={14} /> {busy ? t("settings.redirecting") : t("settings.upgradeButton")}
-        </GhostButton>
       )}
 
       {isPremium && premiumSource === "stripe" && (
@@ -323,7 +314,65 @@ function PlanUsageAndCompare() {
           {busy ? t("settings.redirecting") : t("settings.manageSubscription")}
         </GhostButton>
       )}
+
+      {error && (
+        <div className="text-[13px] px-3 py-2 rounded-lg" style={{ background: C.crimsonDim, color: C.text }}>
+          {error}
+        </div>
+      )}
     </>
+  );
+}
+
+function PremiumPerksGrid() {
+  const { t } = useLanguage();
+  const perks = [
+    { icon: Layers, title: t("settings.planPerkItemsTitle"), body: t("settings.planPerkItemsBody") },
+    { icon: Images, title: t("settings.planPerkPhotosTitle"), body: t("settings.planPerkPhotosBody", { limit: PREMIUM_PHOTO_LIMIT }) },
+    { icon: Sparkles, title: t("settings.planPerkQualityTitle"), body: t("settings.planPerkQualityBody", { maxDim: PREMIUM_PHOTO_RESIZE.maxDim }) },
+    { icon: BoxIcon, title: t("settings.planPerkBoxesTitle"), body: t("settings.planPerkBoxesBody") },
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {perks.map(({ icon: Icon, title, body }) => (
+        <div key={title} className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: `${C.gold}1F` }} className="flex items-center justify-center mb-2.5">
+            <Icon size={16} color={C.gold} />
+          </div>
+          <div className="text-[13px] font-semibold">{title}</div>
+          <div className="text-[11.5px] mt-1 leading-relaxed" style={{ color: C.textFaint }}>{body}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PriceOption({ label, price, suffix, selected, onClick, badge }) {
+  const available = !!price;
+  return (
+    <button
+      onClick={available ? onClick : undefined}
+      disabled={!available}
+      className="p-3 rounded-xl text-left"
+      style={{
+        background: selected && available ? `${C.gold}14` : C.surfaceAlt,
+        border: `1.5px solid ${selected && available ? C.gold : C.border}`,
+        opacity: available ? 1 : 0.6, cursor: available ? "pointer" : "default",
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-semibold" style={{ color: selected && available ? C.gold : C.textDim }}>{label}</span>
+        {selected && available && <Check size={14} color={C.gold} />}
+      </div>
+      {available ? (
+        <div className="text-lg font-bold mt-1">{price}<span className="text-[11px] font-normal" style={{ color: C.textFaint }}> {suffix}</span></div>
+      ) : (
+        <div className="text-[12px] mt-1" style={{ color: C.textFaint }}>…</div>
+      )}
+      {badge && available && (
+        <span className="inline-block mt-2 px-2 py-0.5 rounded-full text-[10.5px] font-semibold" style={{ background: `${C.teal}24`, color: C.teal }}>{badge}</span>
+      )}
+    </button>
   );
 }
 
@@ -337,13 +386,55 @@ function PlanFeatureRow({ label, free, premium }) {
   );
 }
 
-function AccountPanel({ auth, onOpenSettings }) {
+// Tabella di confronto Free/Premium riga per riga — sostituita nella pagina
+// "Piano e abbonamento" da PremiumPerksGrid (più immediata), ma tenuta qui
+// inutilizzata invece che rimossa: potrebbe tornare utile come widget altrove.
+function PlanComparisonTable() {
   const { t } = useLanguage();
-  const { isPremium } = useEntitlement();
+  return (
+    <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+      <div className="text-sm font-semibold mb-3">{t("settings.planCompareTitle")}</div>
+      <div className="grid items-center pb-2" style={{ gridTemplateColumns: "1fr 64px 74px" }}>
+        <span />
+        <span className="text-center text-[10.5px] uppercase tracking-wide" style={{ color: C.textFaint }}>{t("settings.planFree")}</span>
+        <span className="text-center text-[10.5px] uppercase tracking-wide" style={{ color: C.gold }}>{t("settings.planPremium")}</span>
+      </div>
+      <PlanFeatureRow
+        label={t("settings.planFeatureItemLimit")}
+        free={t("settings.planFeatureItemLimitFree", { limit: FREE_TIER_ITEM_LIMIT })}
+        premium={t("settings.planFeatureItemLimitPremium")}
+      />
+      <PlanFeatureRow
+        label={t("settings.planFeaturePhotos") + ' *'}
+        free={t("settings.planFeaturePhotosFree", { limit: FREE_TIER_PHOTO_LIMIT })}
+        premium={t("settings.planFeaturePhotosPremium", { limit: PREMIUM_PHOTO_LIMIT })}
+      />
+      <PlanFeatureRow
+        label={t("settings.planFeaturePhotoQuality")}
+        free={t("settings.planFeaturePhotoQualityFree", { maxDim: FREE_PHOTO_RESIZE.maxDim })}
+        premium={t("settings.planFeaturePhotoQualityPremium", { maxDim: PREMIUM_PHOTO_RESIZE.maxDim })}
+      />
+      <PlanFeatureRow
+        label={t("boxes.planFeature")}
+        free={t("boxes.planFeatureFree")}
+        premium={t("boxes.planFeaturePremium")}
+      />
+      <p className="text-[11.5px] mt-3 leading-relaxed" style={{ color: C.textFaint }}>
+        * {t("settings.planPhotoGraceNote", { days: PHOTO_DOWNGRADE_GRACE_DAYS, limit: FREE_TIER_PHOTO_LIMIT })}
+      </p>
+    </div>
+  );
+}
+
+function AccountPanel({ auth, onOpenSettings, onOpenPlan }) {
+  const { t } = useLanguage();
+  const { isPremium, premiumSource } = useEntitlement();
   const [busy, setBusy] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [itemCount, setItemCount] = useState(null);
+  const [cataloguedCount, setCataloguedCount] = useState(null);
   useEffect(() => { loadInventoryCount().then(setItemCount); }, []);
+  useEffect(() => { if (!isPremium) loadCataloguedCardCount().then(setCataloguedCount); }, [isPremium]);
 
   async function handleSignOut() {
     setBusy(true);
@@ -355,6 +446,8 @@ function AccountPanel({ auth, onOpenSettings }) {
   const emailVerified = !!auth.user?.email_confirmed_at;
   const memberSince = auth.user?.created_at ? fmtDate(auth.user.created_at) : null;
   const lastSignIn = auth.user?.last_sign_in_at ? fmtDate(auth.user.last_sign_in_at) : null;
+  const usagePct = cataloguedCount == null ? 0 : Math.min(100, (cataloguedCount / FREE_TIER_ITEM_LIMIT) * 100);
+  const usageBarColor = usagePct >= 100 ? C.crimson : usagePct >= 80 ? C.amber : C.teal;
 
   return (
     <>
@@ -393,7 +486,33 @@ function AccountPanel({ auth, onOpenSettings }) {
         </div>
       </div>
 
-      <PlanUsageAndCompare />
+      {!isPremium && (
+        <div className="p-4 rounded-2xl" style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+          <div className="flex items-center justify-between text-[12px] mb-1.5" style={{ color: C.textDim }}>
+            <span>{t("settings.planUsageLabel")}</span>
+            <span style={{ color: usageBarColor, fontWeight: 600 }}>
+              {cataloguedCount == null ? "…" : t("settings.planUsageCount", { count: cataloguedCount, limit: FREE_TIER_ITEM_LIMIT })}
+            </span>
+          </div>
+          <div style={{ height: 8, borderRadius: 999, background: C.surfaceAlt, overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${usagePct}%`, background: usageBarColor, borderRadius: 999, transition: "width 0.2s ease" }} />
+          </div>
+          {usagePct >= 100 && (
+            <p className="text-[12px] mt-2" style={{ color: C.crimson }}>{t("settings.planUsageFull")}</p>
+          )}
+        </div>
+      )}
+
+      {!isPremium && (
+        <PrimaryButton full onClick={onOpenPlan}>
+          <Crown size={14} /> {t("settings.upgradeButton")}
+        </PrimaryButton>
+      )}
+      {isPremium && premiumSource === "stripe" && (
+        <GhostButton full onClick={onOpenPlan}>
+          {t("settings.manageSubscription")}
+        </GhostButton>
+      )}
 
       <GhostButton full onClick={onOpenSettings}>
         <Cog size={14} /> {t("settings.title")}
