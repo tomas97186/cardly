@@ -264,6 +264,16 @@ function PlanUsageAndCompare() {
 
   return (
     <>
+      {isPremium && (
+        <div className="p-4 rounded-2xl text-center" style={{ background: `${C.gold}14`, border: `1px solid ${C.gold}55` }}>
+          <div className="mx-auto mb-2 flex items-center justify-center" style={{ width: 44, height: 44, borderRadius: 999, background: `${C.gold}24` }}>
+            <Crown size={20} color={C.gold} />
+          </div>
+          <div className="text-sm font-semibold">{t("settings.planPremiumActiveTitle")}</div>
+          <p className="text-[12.5px] mt-1" style={{ color: C.textDim }}>{t("settings.planPremiumActiveBody")}</p>
+        </div>
+      )}
+
       <PremiumPerksGrid />
 
       {!isPremium && (
@@ -310,9 +320,14 @@ function PlanUsageAndCompare() {
       )}
 
       {isPremium && premiumSource === "stripe" && (
-        <GhostButton full disabled={busy} onClick={handleManageSubscription}>
-          {busy ? t("settings.redirecting") : t("settings.manageSubscription")}
-        </GhostButton>
+        <>
+          <GhostButton full disabled={busy} onClick={handleManageSubscription}>
+            {busy ? t("settings.redirecting") : t("settings.cancelOrModifyPlanButton")}
+          </GhostButton>
+          <p className="text-[11px] text-center leading-relaxed" style={{ color: C.textFaint }}>
+            {t("settings.manageSubscriptionHint")}
+          </p>
+        </>
       )}
 
       {error && (
@@ -509,9 +524,9 @@ function AccountPanel({ auth, onOpenSettings, onOpenPlan }) {
         </PrimaryButton>
       )}
       {isPremium && premiumSource === "stripe" && (
-        <GhostButton full onClick={onOpenPlan}>
-          {t("settings.manageSubscription")}
-        </GhostButton>
+        <PrimaryButton full onClick={onOpenPlan}>
+          <Crown size={14} /> {t("settings.managePremiumPlanButton")}
+        </PrimaryButton>
       )}
 
       <GhostButton full onClick={onOpenSettings}>

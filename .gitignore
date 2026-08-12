@@ -18,3 +18,9 @@ yarn-error.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Progetto Android/Gradle generato da Bubblewrap (TWA per il Play Store) —
+# toolchain a parte rispetto al resto del repo, e contiene il keystore che
+# firma l'app: non va mai committato. Vedi il piano "Pubblicare Cardly sul
+# Play Store come TWA".
+/twa/

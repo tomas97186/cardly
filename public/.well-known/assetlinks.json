@@ -2,7 +2,7 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "app.netlify.cardly.twa",
-    "sha256_cert_fingerprints": ["13:98:88:4B:19:0E:39:F8:C4:22:E6:A3:EC:11:AB:06:31:76:73:CE:09:44:A9:7C:E6:E7:82:FD:93:43:7F:B5"]
+    "package_name": "com.cardlycollector.twa",
+    "sha256_cert_fingerprints": ["6D:8A:C3:3C:D8:87:CA:86:65:E6:77:E8:E4:93:39:5E:C9:FE:EA:48:2A:45:A9:9D:FE:31:5A:33:89:AC:24:A7"]
   }
 }]
