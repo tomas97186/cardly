@@ -23,3 +23,10 @@ export const PREMIUM_PHOTO_RESIZE = { maxDim: 1600, quality: 0.88 };
 // disdetta è effettiva). Quando quel job verrà scritto, deve leggere questa stessa
 // costante invece di un altro numero inventato lì per lì.
 export const PHOTO_DOWNGRADE_GRACE_DAYS = 30;
+
+// Identificativi del prodotto in abbonamento su Google Play Console (un solo
+// prodotto "premium" con due base plan) — usati per costruire lo sku passato
+// alla Digital Goods API/PaymentRequest nella TWA. Vedi lib/playBilling.js.
+export const GOOGLE_PLAY_PRODUCT_ID = "premium";
+export const GOOGLE_PLAY_BASE_PLAN_MONTHLY = "monthly";
+export const GOOGLE_PLAY_BASE_PLAN_YEARLY = "yearly";

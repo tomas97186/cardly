@@ -210,6 +210,7 @@ export const en = {
     planPremiumActiveBody: "You're currently a Premium user and get to enjoy all of these perks.",
     cancelOrModifyPlanButton: "Cancel or modify plan",
     manageSubscriptionHint: "Opens the Stripe portal: from there you can update your payment method, view invoices, or cancel the subscription.",
+    managePlaySubscriptionHint: "Opens the Play Store subscriptions page: from there you can update your payment method or cancel the subscription.",
     upgradeButton: "Upgrade to Premium",
     managePremiumPlanButton: "Manage Premium Plan",
     redirecting: "Redirecting...",

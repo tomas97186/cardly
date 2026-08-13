@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { C } from "../../lib/theme";
 import { fmtDate, formatAmount, CURRENCY_OPTIONS } from "../../lib/format";
-import { SUPPORT_EMAIL, FREE_TIER_ITEM_LIMIT, FREE_TIER_PHOTO_LIMIT, PREMIUM_PHOTO_LIMIT, FREE_PHOTO_RESIZE, PREMIUM_PHOTO_RESIZE, PHOTO_DOWNGRADE_GRACE_DAYS } from "../../lib/appConfig";
+import { SUPPORT_EMAIL, FREE_TIER_ITEM_LIMIT, FREE_TIER_PHOTO_LIMIT, PREMIUM_PHOTO_LIMIT, FREE_PHOTO_RESIZE, PREMIUM_PHOTO_RESIZE, PHOTO_DOWNGRADE_GRACE_DAYS, GOOGLE_PLAY_BASE_PLAN_MONTHLY, GOOGLE_PLAY_BASE_PLAN_YEARLY } from "../../lib/appConfig";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useCurrency } from "../../context/CurrencyContext";
@@ -14,6 +14,7 @@ import { useEntitlement } from "../../context/EntitlementContext";
 import { useEbayMarket } from "../../context/EbayMarketContext";
 import { loadInventoryCount, loadCataloguedCardCount } from "../../lib/storage";
 import { startCheckout, openBillingPortal, loadPlanPrices } from "../../lib/stripe";
+import { isPlayBillingAvailable, loadPlayBillingPrices, purchasePlayBilling } from "../../lib/playBilling";
 import { EBAY_MARKET_OPTIONS } from "../../lib/marketSearch";
 import { Modal } from "../ui/Modal";
 import { GhostButton, PrimaryButton } from "../ui/Buttons";
@@ -225,8 +226,15 @@ function PlanUsageAndCompare() {
   const [error, setError] = useState("");
   const [billingInterval, setBillingInterval] = useState("monthly"); // "monthly" | "annual"
   const [prices, setPrices] = useState(null); // { monthly, annual } | null finché in caricamento
+  // null finché non sappiamo ancora se siamo dentro la TWA Android — evita un
+  // lampo di prezzi/pulsante Stripe prima di scoprire che va usato Play Billing.
+  const [playBillingReady, setPlayBillingReady] = useState(null);
 
-  useEffect(() => { if (!isPremium) loadPlanPrices().then(setPrices); }, [isPremium]);
+  useEffect(() => { isPlayBillingAvailable().then(setPlayBillingReady); }, []);
+  useEffect(() => {
+    if (isPremium || playBillingReady === null) return;
+    (playBillingReady ? loadPlayBillingPrices() : loadPlanPrices()).then(setPrices);
+  }, [isPremium, playBillingReady]);
 
   const monthly = prices?.monthly;
   const annual = prices?.annual;
@@ -243,9 +251,16 @@ function PlanUsageAndCompare() {
     setBusy(true);
     setError("");
     try {
-      await startCheckout(billingInterval);
+      if (playBillingReady) {
+        await purchasePlayBilling(billingInterval === "monthly" ? GOOGLE_PLAY_BASE_PLAN_MONTHLY : GOOGLE_PLAY_BASE_PLAN_YEARLY);
+      } else {
+        await startCheckout(billingInterval);
+      }
     } catch (e) {
       setError(t("settings.upgradeError"));
+    } finally {
+      // Per Stripe la pagina naviga via prima che questo conti; per Play
+      // Billing l'acquisto si risolve in pagina, va riabilitato il pulsante.
       setBusy(false);
     }
   }
@@ -260,6 +275,10 @@ function PlanUsageAndCompare() {
       setError(t("settings.upgradeError"));
       setBusy(false);
     }
+  }
+
+  function handleOpenPlayStoreSubscriptions() {
+    window.open("https://play.google.com/store/account/subscriptions?package=com.cardlycollector.twa&sku=premium", "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -297,13 +316,15 @@ function PlanUsageAndCompare() {
             />
           </div>
 
-          <div className="flex items-start gap-2 mt-3 p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
-            <Tag size={14} color={C.textFaint} style={{ marginTop: 1, flexShrink: 0 }} />
-            <div>
-              <div className="text-[12.5px] font-medium">{t("settings.planDiscountTitle")}</div>
-              <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>{t("settings.planDiscountBody")}</div>
+          {!playBillingReady && (
+            <div className="flex items-start gap-2 mt-3 p-3 rounded-xl" style={{ background: C.surfaceAlt }}>
+              <Tag size={14} color={C.textFaint} style={{ marginTop: 1, flexShrink: 0 }} />
+              <div>
+                <div className="text-[12.5px] font-medium">{t("settings.planDiscountTitle")}</div>
+                <div className="text-[11.5px] mt-0.5" style={{ color: C.textFaint }}>{t("settings.planDiscountBody")}</div>
+              </div>
             </div>
-          </div>
+          )}
 
           <PrimaryButton
             full style={{ marginTop: 16 }}
@@ -326,6 +347,17 @@ function PlanUsageAndCompare() {
           </GhostButton>
           <p className="text-[11px] text-center leading-relaxed" style={{ color: C.textFaint }}>
             {t("settings.manageSubscriptionHint")}
+          </p>
+        </>
+      )}
+
+      {isPremium && premiumSource === "google_play" && (
+        <>
+          <GhostButton full onClick={handleOpenPlayStoreSubscriptions}>
+            {t("settings.cancelOrModifyPlanButton")}
+          </GhostButton>
+          <p className="text-[11px] text-center leading-relaxed" style={{ color: C.textFaint }}>
+            {t("settings.managePlaySubscriptionHint")}
           </p>
         </>
       )}
@@ -523,7 +555,7 @@ function AccountPanel({ auth, onOpenSettings, onOpenPlan }) {
           <Crown size={14} /> {t("settings.upgradeButton")}
         </PrimaryButton>
       )}
-      {isPremium && premiumSource === "stripe" && (
+      {isPremium && (premiumSource === "stripe" || premiumSource === "google_play") && (
         <PrimaryButton full onClick={onOpenPlan}>
           <Crown size={14} /> {t("settings.managePremiumPlanButton")}
         </PrimaryButton>
