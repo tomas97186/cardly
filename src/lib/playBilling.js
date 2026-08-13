@@ -17,7 +17,10 @@ let servicePromise = null;
 function getService() {
   if (!servicePromise) {
     servicePromise = "getDigitalGoodsService" in window
-      ? window.getDigitalGoodsService("https://play.google.com/billing").catch(() => null)
+      ? window.getDigitalGoodsService("https://play.google.com/billing").catch((e) => {
+          console.error("[playBilling] getDigitalGoodsService failed", e);
+          return null;
+        })
       : Promise.resolve(null);
   }
   return servicePromise;
@@ -41,6 +44,8 @@ export async function loadPlayBillingPrices() {
   const monthlySku = skuFor(GOOGLE_PLAY_BASE_PLAN_MONTHLY);
   const yearlySku = skuFor(GOOGLE_PLAY_BASE_PLAN_YEARLY);
   const details = await service.getDetails([monthlySku, yearlySku]);
+  // eslint-disable-next-line no-console
+  console.log("[playBilling] richiesti:", [monthlySku, yearlySku], "ricevuti:", details);
 
   const monthly = details.find((d) => d.itemId === monthlySku);
   const yearly = details.find((d) => d.itemId === yearlySku);

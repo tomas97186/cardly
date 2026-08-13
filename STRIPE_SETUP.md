@@ -50,6 +50,7 @@ Dalla cartella del progetto (contiene `supabase/functions/`):
 supabase functions deploy create-checkout-session
 supabase functions deploy create-portal-session
 supabase functions deploy stripe-webhook --no-verify-jwt
+supabase functions deploy get-plan-prices
 ```
 L'ultima **deve** avere `--no-verify-jwt`: Stripe la chiama da fuori senza un
 token Supabase, l'autenticazione è la firma HMAC verificata nel codice
