@@ -2,7 +2,7 @@
   "name": "Cardly - Gestione Carte",
   "short_name": "Cardly",
   "description": "Gestione inventario carte collezionabili Pokémon e One Piece",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "id": "./index.html",
   "display": "standalone",
