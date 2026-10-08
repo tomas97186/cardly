@@ -24,3 +24,9 @@ Thumbs.db
 # firma l'app: non va mai committato. Vedi il piano "Pubblicare Cardly sul
 # Play Store come TWA".
 /twa/
+
+# File locali: config Claude Code, cache Supabase CLI, env di prova
+.claude/settings.local.json
+supabase/.temp/
+.env.*
+!.env.example
