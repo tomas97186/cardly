@@ -24,14 +24,6 @@ Trusted Web Activity.
   the Android app. Free-tier limits are enforced in the database, not only in the UI.
 - Italian and English UI, light and dark themes, multiple currencies.
 
-### No made-up numbers
-
-When a cost isn't known, Cardly says so. It never guesses one.
-
-- A lot's price is never split evenly across its cards.
-- Cards with an unknown cost are left out of margin calculations, and the app flags them.
-- For a bundle sale, margin is computed only when the cost of every card in it is known.
-
 ## Stack
 
 | | |
